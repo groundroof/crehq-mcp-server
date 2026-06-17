@@ -1,0 +1,56 @@
+{
+  "name": "crehq-mcp-server",
+  "version": "0.1.0",
+  "description": "Model Context Protocol server that wraps the CREHQ location-intelligence REST API as native AI-agent tools (franchise brands, store locations, FDD financials, site tenancy history, whitespace & co-tenancy).",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "crehq-mcp-server": "dist/index.js"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "location-data",
+    "franchise",
+    "fdd",
+    "retail",
+    "crehq"
+  ],
+  "homepage": "https://crehq.com/developers/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/groundroof/crehq-mcp-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/groundroof/crehq-mcp-server/issues"
+  },
+  "author": "CREHQ",
+  "files": [
+    "dist",
+    "README.md",
+    "GO-LIVE.md",
+    "LICENSE",
+    "NOTICE",
+    ".env.example"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "start": "node dist/index.js",
+    "dev": "node --loader ts-node/esm src/index.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0"
+  }
+}

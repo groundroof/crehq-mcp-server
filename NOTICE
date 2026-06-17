@@ -1,0 +1,28 @@
+CREHQ MCP Server
+================
+
+This package contains TWO distinct things with TWO distinct licenses:
+
+1. THE CODE (this MCP server / API wrapper)
+   -----------------------------------------
+   Licensed under the MIT License (see LICENSE). You may freely use, copy,
+   modify, and redistribute the source code of this server.
+
+2. THE DATA (everything the server fetches from the CREHQ API)
+   -----------------------------------------------------------
+   The CREHQ location-intelligence data accessed through this server —
+   franchise/brand records, store-level location data, FDD financials,
+   site tenancy history, whitespace, co-tenancy, datasets, trends, and any
+   other content returned by https://crehq.com/wp-json/crehq/v1 — is
+   PROPRIETARY to CREHQ and is NOT covered by the MIT license above.
+
+   That data is provided solely under CREHQ's API Terms and the terms of your
+   applicable API tier or contract. Your right to retrieve, store, display,
+   resell, or redistribute CREHQ data is governed entirely by those terms,
+   independent of the open-source license on this code.
+
+   - API & data license terms: https://crehq.com/license-terms/
+   - Enterprise / commercial licensing: enterprise@crehq.com
+
+   Use of an API key constitutes acceptance of CREHQ's API terms. Removing or
+   modifying this NOTICE does not change your obligations regarding CREHQ data.

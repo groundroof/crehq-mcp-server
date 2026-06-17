@@ -1,0 +1,22 @@
+# Source & build config (only dist/ ships)
+src/
+tsconfig.json
+*.tsbuildinfo
+
+# Secrets & local env
+.env
+.env.*
+!.env.example
+
+# Dev/test tooling
+test.sh
+.github/
+
+# VCS & editor
+.git/
+.gitignore
+.DS_Store
+*.log
+
+# Lockfile (not needed by consumers of a published package)
+package-lock.json

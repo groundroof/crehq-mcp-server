@@ -15,7 +15,7 @@
  *   9. MCP no-auth POST /mcp without Bearer -> 401 + WWW-Authenticate
  *  10. MCP init    POST /mcp initialize -> serverInfo
  *  11. MCP list    POST /mcp tools/list -> tool catalog (scope-filtered)
- *  12. MCP call    POST /mcp tools/call crehq_companies_search -> LIVE CREHQ API
+ *  12. MCP call    POST /mcp tools/call crehq_locations_list -> LIVE CREHQ API
  *  13. Tier gate   POST /mcp tools/call premium tool when scope absent -> upgrade
  *
  * The CREHQ key for step 5/12 comes from CREHQ_TEST_API_KEY. If unset, the test
@@ -188,10 +188,10 @@ async function main(): Promise<void> {
   );
 
   // 12. tools/call -> LIVE CREHQ API -----------------------------------------
-  const callR = await (await mcp({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "crehq_companies_search", arguments: { q: "mcdonalds", per_page: 2 } } })).json();
+  const callR = await (await mcp({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "crehq_locations_list", arguments: { brand: "starbucks", per_page: 2 } } })).json();
   const callText: string = callR.result?.content?.[0]?.text ?? "";
   const callOk = !callR.result?.isError && callText.length > 0;
-  check("mcp: tools/call crehq_companies_search hit LIVE CREHQ API", callOk, callOk ? "got rows" : `error: ${callText.slice(0, 120)}`);
+  check("mcp: tools/call crehq_locations_list hit LIVE CREHQ API", callOk, callOk ? "got rows" : `error: ${callText.slice(0, 120)}`);
   console.log(`  ...live response (first 240 chars):\n    ${callText.replace(/\n/g, "\n    ").slice(0, 240)}`);
 
   // 13. tier gating ----------------------------------------------------------

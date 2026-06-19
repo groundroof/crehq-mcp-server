@@ -1,7 +1,7 @@
 # CREHQ Remote MCP Server
 
 A **hosted, remote** [Model Context Protocol](https://modelcontextprotocol.io) server that exposes
-CREHQ's location-intelligence REST API (`https://crehq.com/wp-json/crehq/v1`) as 26 native AI-agent
+CREHQ's location-intelligence REST API (`https://crehq.com/wp-json/crehq/v1`) as 29 native AI-agent
 tools — over the **Streamable-HTTP** transport, gated by **OAuth 2.1** (authorization code + PKCE).
 
 Unlike the stdio package (`crehq-mcp-server`, for local Claude Desktop), this server is built to be
@@ -27,16 +27,24 @@ submitted to **Anthropic's connector directory**, mcp.so, Smithery, and PulseMCP
   user's own key and entitlements**.
 - **Scope / tier gating:**
   - `read:locations` — companies, locations, datasets, trends, FDD, contacts (21 tools)
-  - `read:intelligence` — premium: whitespace, co-tenancy, site-timeline, point-in-time occupancy
+  - `read:intelligence` — premium: whitespace, co-tenancy, modeled site profiles, site-timeline, point-in-time occupancy
   - Premium tools are hidden from `tools/list` and return a clean **upgrade message** if a
     basic-scoped token tries to call them.
 
-## The 26 tools
+## The 29 tools
 
-Companies/brands (6) · Locations (7) · Changes/Occupancy/Site-Timeline (3) · Intelligence (2) ·
+Companies/brands (6) · Locations (7) · Changes/Occupancy/Site-Timeline (3) · Intelligence (5) ·
 Datasets (4) · Trends (2). Tool names and descriptions are identical to the stdio package; see
 [`src/tools.ts`](./src/tools.ts). Premium (intel-scoped): `crehq_company_credit_signals`, `crehq_whitespace`, `crehq_co_tenancy`,
+`crehq_location_site_profile`, `crehq_company_site_pattern`, `crehq_recent_location_context`,
 `crehq_site_timeline`, `crehq_company_occupancy`.
+
+Modeled Site Profile outputs must be described as **CREHQ-modeled from observed
+location/context data**, not as company-stated site requirements unless the
+response includes explicit stated-requirement provenance. The backing
+`/intelligence/site-profiles/*` REST routes remain staged until Mark approves
+production publication, so these tools can appear in the connector catalog
+before the live API route is enabled.
 
 ## Architecture
 
@@ -48,14 +56,14 @@ src/
   oauth.ts       OAuth 2.1 AS: discovery, DCR, /authorize, /token, PKCE, refresh, key bridging
   consent.ts     Server-rendered consent screen (link your CREHQ key)
   mcp.ts         MCP JSON-RPC handler (initialize / tools/list / tools/call) + tier gating
-  tools.ts       The 26 CREHQ tool definitions (+ requiredScope)
+  tools.ts       The 29 CREHQ tool definitions (+ requiredScope)
   client.ts      CREHQ REST client (per-request key; Fetch-based; runs in Workers + Node)
   crypto.ts      Web Crypto helpers (random tokens, SHA-256, PKCE S256 verify)
   storage.ts     Store interface: KvStore (Workers KV) | MemoryStore (local)
   format.ts      Result/error/upgrade-message formatting
 test/
   oauth-flow.test.ts  Real-key path (proves live validation; 7 checks)
-  full-flow.test.ts   Full mechanics incl. token issuance + MCP transport (17 checks)
+  full-flow.test.ts   Full mechanics incl. token issuance + MCP transport (20 checks)
 ```
 
 The same `handleRequest(req, store, cfg)` runs in the Worker and in Node — only the storage backend
@@ -100,8 +108,8 @@ Verified end-to-end against the **live CREHQ API** in both the Node harness and 
 5. `/token` (code + verifier) → `access_token` + `refresh_token`; wrong verifier → `invalid_grant`;
    code is single-use (replay rejected); refresh grant rotates the token
 6. `/mcp` without Bearer → **401 + `WWW-Authenticate`** (resource_metadata)
-7. `initialize` → serverInfo; `tools/list` → scope-filtered (21 basic / 26 with intel)
-8. `tools/call crehq_companies_search` → **proxied to the live CREHQ API**
+7. `initialize` → serverInfo; `tools/list` → scope-filtered (21 basic / 29 with intel)
+8. `tools/call crehq_locations_list` with `brand=starbucks` → **proxied to the live sandbox-safe CREHQ API**
 9. Premium tool with a basic token → clean upgrade message (no API call)
 
 A valid CREHQ key is required for *real rows*; with a dummy key the live API returns a genuine

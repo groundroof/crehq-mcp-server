@@ -9,7 +9,7 @@
  * https://crehq.com/apis/ (verified 2026-06-17).
  */
 import { z, type ZodRawShape, type ZodTypeAny } from "zod";
-import type { CrehqClient } from "./client.js";
+import { CrehqApiError, type CrehqClient } from "./client.js";
 import { ok, fail, type ToolContent } from "./format.js";
 
 export interface ToolDef {
@@ -40,7 +40,97 @@ const perPage = z
   .describe("Results per page (max 200, default 50).");
 const page = z.number().int().min(1).optional().describe("Page number for cursor/offset pagination (default 1).");
 
+const upgradeIntentFields: Record<string, string> = {
+  franchise_fdd: "fdd",
+  item19_financials: "item19",
+  credit_signals: "credit_signals",
+  credit_profile: "credit_profile",
+  credit_rating: "credit_rating",
+  site_selection_criteria: "site_requirements",
+  real_estate_requirements: "real_estate_requirements",
+  real_estate_contacts: "contacts",
+  source_provenance: "provenance",
+  change_history: "event_history",
+  bulk_download: "provenance",
+  whitespace: "trade_area",
+  co_tenancy: "trade_area",
+  site_timeline: "event_history",
+  other: "provenance",
+};
+
 export const TOOLS: ToolDef[] = [
+  {
+    name: "crehq_request_upgrade",
+    description:
+      "Use this when the user asks CREHQ for data that is NOT included in the free sandbox: CREHQ Credit Signals / credit-intelligence profiles, ownership/sponsor/capital-structure/rating-history data, site-selection criteria, real-estate requirements, tenant requirements, franchise/FDD data, Item 19 financials, real-estate contacts, source provenance, event/change history, bulk dataset downloads, whitespace analysis, co-tenancy, site timeline, point-in-time occupancy, or higher limits. This returns a clear upgrade prompt and, for free sandbox keys, records the requested topic as a CREHQ paywall/upgrade-intent signal for follow-up. Do NOT tell the user CREHQ lacks credit signals, franchise/FDD, or site-selection data merely because the free footprint endpoint omits them.",
+    schema: {
+      requested_data: z
+        .enum([
+          "franchise_fdd",
+          "item19_financials",
+          "credit_signals",
+          "credit_profile",
+          "credit_rating",
+          "site_selection_criteria",
+          "real_estate_requirements",
+          "real_estate_contacts",
+          "source_provenance",
+          "change_history",
+          "bulk_download",
+          "whitespace",
+          "co_tenancy",
+          "site_timeline",
+          "other",
+        ])
+        .describe("The paid data category the user asked for, including credit signals, site-selection criteria or real-estate requirements."),
+      brand: z.string().optional().describe("Optional brand slug/name involved in the request, e.g. 'taco-bell'."),
+      question: z.string().optional().describe("The user's original request or short summary."),
+    },
+    handler: async (c, a) => {
+      const requested = String(a.requested_data ?? "other");
+      const field = upgradeIntentFields[requested] ?? "provenance";
+      const brand = typeof a.brand === "string" && a.brand.trim() ? a.brand.trim() : undefined;
+
+      if ((await c.apiSurface()) === "selfserve") {
+        try {
+          await c.request("/selfserve/locations", {
+            query: { brand, fields: field, limit: 1 },
+          });
+        } catch (err) {
+          if (err instanceof CrehqApiError && err.status === 402) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text:
+                    `CREHQ has this type of data, but "${requested}" is not included in the free sandbox tier. ` +
+                    `The request${brand ? ` for ${brand}` : ""} has been recorded as upgrade intent. ` +
+                    `Upgrade or request production access at https://crehq.com/developers/sandbox/` +
+                    (a.question ? `\n\nUser request: ${String(a.question)}` : ""),
+                },
+              ],
+              isError: true,
+            };
+          }
+          return fail(err);
+        }
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text:
+              `The user asked for "${requested}"${brand ? ` for ${brand}` : ""}. ` +
+              "If their current CREHQ contract does not include this data, upgrade the key/tier and reconnect this MCP server with the upgraded key. " +
+              "Production and Intelligence access: https://crehq.com/developers/sandbox/",
+          },
+        ],
+        isError: true,
+      };
+    },
+  },
+
   // ========================================================================
   // COMPANIES / BRANDS
   // ========================================================================
@@ -85,7 +175,7 @@ export const TOOLS: ToolDef[] = [
   {
     name: "crehq_company_credit_signals",
     description:
-      "CREHQ Credit Signals for a brand: ownership and parent/issuer context, PE sponsor data, rating history, capital structure, debt/maturity/covenant facts, unit-count trajectory, footprint status counts, and material events. Use this when the user asks about tenant credit, creditworthiness, lender diligence, leverage, ratings, sponsor ownership, or distress/health signals for a brand. Requires a CREHQ key entitled to the credit-intel pack; if the API returns 403, explain that CREHQ has this product but the current key/tier does not include it.",
+      "PREMIUM CREDIT INTELLIGENCE — get CREHQ Credit Signals for a brand: ownership and parent/issuer context, PE sponsor data, rating history, capital structure, debt/maturity/covenant facts, unit-count trajectory, footprint status counts, and material events. Use this when the user asks about tenant credit, creditworthiness, lender diligence, leverage, ratings, sponsor ownership, or distress/health signals for a brand. Requires credit-intel access; if unavailable or scope-gated, use crehq_request_upgrade with requested_data='credit_signals' instead of saying CREHQ lacks the data.",
     schema: { id: z.union([z.string(), z.number()]).describe("CREHQ company id (from crehq_companies_search).") },
     handler: (c, a) => call(() => c.request(`/company/${encodeURIComponent(String(a.id))}/credit-signals`)),
   },
@@ -99,7 +189,7 @@ export const TOOLS: ToolDef[] = [
   {
     name: "crehq_company_real_estate",
     description:
-      "Get a brand's site-selection criteria and target real-estate profile: preferred site types, building/lot size, target geographies and trade areas, and expansion markets. Essential for landlords, brokers, and site-selectors who want to know what a tenant is looking for before pitching them space.",
+      "PREMIUM SITE-SELECTION DATA — get a brand's site-selection criteria and target real-estate profile: preferred site types, building/lot size, target geographies and trade areas, and expansion markets. Essential for landlords, brokers, and site-selectors who want to know what a tenant is looking for before pitching them space. If unavailable or scope-gated, use crehq_request_upgrade with requested_data='site_selection_criteria' instead of saying CREHQ lacks site requirements.",
     schema: { id: z.union([z.string(), z.number()]).describe("CREHQ company id (from crehq_companies_search).") },
     handler: (c, a) => call(() => c.request(`/company/${encodeURIComponent(String(a.id))}/real-estate`)),
   },
@@ -117,7 +207,7 @@ export const TOOLS: ToolDef[] = [
   {
     name: "crehq_locations_list",
     description:
-      "List individual store/branch/site records, filterable by brand, US state, and category. Each location carries a stable entity_uid, geocoded address, open/closed status, and a multi-source verification trace. The raw, government-cross-checked footprint behind any brand. This footprint output does NOT include credit signals, ownership/rating history, capital structure, or tenant-credit diligence; for those requests use crehq_company_credit_signals instead of saying CREHQ lacks the data.",
+      "List individual store/branch/site records, filterable by brand, US state, and category. Each location carries a stable entity_uid, geocoded address, open/closed status, and a multi-source verification trace. The raw, government-cross-checked footprint behind any brand. Free sandbox keys can use this as a bounded brand lookup. This footprint output does NOT include credit signals, ownership/rating history, capital structure, site-selection criteria, FDD/Item 19, or tenant-credit diligence; for those requests use the relevant premium tool if available, otherwise call crehq_request_upgrade with the matching requested_data value.",
     schema: {
       brand: z.string().optional().describe("Brand slug or name to filter by (e.g. 'planet-fitness')."),
       state: z.string().optional().describe("US state, 2-letter code or full name (e.g. 'TX')."),
@@ -125,12 +215,35 @@ export const TOOLS: ToolDef[] = [
       per_page: perPage,
       page,
     },
-    handler: (c, a) =>
-      call(() =>
-        c.request("/locations", {
-          query: { brand: a.brand as string, state: a.state as string, category: a.category as string, per_page: a.per_page as number, page: a.page as number },
-        }),
-      ),
+    handler: async (c, a) =>
+      (await c.apiSurface()) === "selfserve"
+        ? a.brand
+          ? call(() =>
+              c.request("/selfserve/locations", {
+                query: {
+                  brand: a.brand as string,
+                  limit: (a.per_page as number) ?? 25,
+                  page: a.page as number,
+                },
+              }),
+            )
+          : Promise.resolve({
+              content: [
+                {
+                  type: "text",
+                  text:
+                    "Free CREHQ sandbox keys require a bounded location query. " +
+                    "For this tool, pass a brand slug/name such as brand=\"starbucks\". " +
+                    "Use crehq_locations_nearby for lat/lng radius searches, or crehq_request_upgrade for premium data like credit signals, FDD, site-selection criteria, contacts, provenance, or bulk downloads.",
+                },
+              ],
+              isError: true,
+            })
+        : call(() =>
+            c.request("/locations", {
+              query: { brand: a.brand as string, state: a.state as string, category: a.category as string, per_page: a.per_page as number, page: a.page as number },
+            }),
+          ),
   },
   {
     name: "crehq_location_get",
@@ -170,12 +283,24 @@ export const TOOLS: ToolDef[] = [
       category: z.string().optional().describe("Optional: restrict to one vertical/category."),
       per_page: perPage,
     },
-    handler: (c, a) =>
-      call(() =>
-        c.request("/locations/nearby", {
-          query: { lat: a.lat as number, lng: a.lng as number, radius_mi: a.radius_mi as number, brand: a.brand as string, category: a.category as string, per_page: a.per_page as number },
-        }),
-      ),
+    handler: async (c, a) =>
+      (await c.apiSurface()) === "selfserve"
+        ? call(() =>
+            c.request("/selfserve/locations", {
+              query: {
+                lat: a.lat as number,
+                lng: a.lng as number,
+                radius: (a.radius_mi as number) ?? 5,
+                brand: a.brand as string,
+                limit: (a.per_page as number) ?? 25,
+              },
+            }),
+          )
+        : call(() =>
+            c.request("/locations/nearby", {
+              query: { lat: a.lat as number, lng: a.lng as number, radius_mi: a.radius_mi as number, brand: a.brand as string, category: a.category as string, per_page: a.per_page as number },
+            }),
+          ),
   },
   {
     name: "crehq_locations_bulk",

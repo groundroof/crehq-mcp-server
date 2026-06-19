@@ -103,10 +103,14 @@ async function run(scopeRequest: string, label: string): Promise<void> {
     names.includes("crehq_request_upgrade");
   check(
     "mcp: tools/list count matches tier",
-    selfserveCatalog || names.length === (hasIntel ? 26 : 21),
+    selfserveCatalog || names.length === (hasIntel ? 29 : 21),
     `${names.length} tools (intel=${hasIntel}, selfserve=${selfserveCatalog})`,
   );
   check("mcp: intel tools gated in catalog", hasIntel ? names.includes("crehq_whitespace") : !names.includes("crehq_whitespace"));
+  check(
+    "mcp: modeled site tools gated in catalog",
+    hasIntel ? names.includes("crehq_recent_location_context") : !names.includes("crehq_recent_location_context"),
+  );
 
   // tools/call -> live API (dummy key => real 401, real key => rows)
   const call = await (await mcp({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "crehq_locations_list", arguments: { brand: "starbucks", per_page: 2 } } })).json();

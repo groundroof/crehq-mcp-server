@@ -11,11 +11,14 @@
 
 export const DEFAULT_API_BASE = "https://crehq.com/wp-json/crehq/v1";
 const SANDBOX_URL = "https://crehq.com/developers/sandbox/";
+const USER_AGENT = "crehq-mcp-server/0.1.2";
+export type CrehqApiSurface = "auto" | "selfserve" | "full";
 
 export interface CrehqConfig {
   apiKey: string;
   apiBase: string;
   timeoutMs: number;
+  apiSurface: CrehqApiSurface;
 }
 
 /** Headers worth surfacing back to the agent (pagination, cache, event streams). */
@@ -57,7 +60,10 @@ export function loadConfig(): CrehqConfig {
   const apiKey = (process.env.CREHQ_API_KEY ?? "").trim();
   const apiBase = (process.env.CREHQ_API_BASE ?? DEFAULT_API_BASE).trim().replace(/\/+$/, "");
   const timeoutMs = Number.parseInt(process.env.CREHQ_TIMEOUT_MS ?? "30000", 10) || 30000;
-  return { apiKey, apiBase, timeoutMs };
+  const rawSurface = (process.env.CREHQ_API_SURFACE ?? "auto").trim().toLowerCase();
+  const apiSurface: CrehqApiSurface =
+    rawSurface === "selfserve" || rawSurface === "full" ? rawSurface : "auto";
+  return { apiKey, apiBase, timeoutMs, apiSurface };
 }
 
 type QueryValue = string | number | boolean | undefined | null;
@@ -73,11 +79,32 @@ export interface RequestOptions {
 }
 
 export class CrehqClient {
+  private detectedApiSurface?: "selfserve" | "full";
+
   constructor(private readonly config: CrehqConfig) {}
 
   /** True when no key is configured — lets tools fail fast with guidance. */
   get hasKey(): boolean {
     return this.config.apiKey.length > 0;
+  }
+
+  /**
+   * Detect whether the configured key is a free self-serve sandbox key.
+   * Sandbox keys are intentionally restricted to `/selfserve/*`; full keys use
+   * the broader REST API. The detection is cached for the MCP process lifetime.
+   */
+  async apiSurface(): Promise<"selfserve" | "full"> {
+    if (this.config.apiSurface === "selfserve" || this.config.apiSurface === "full") {
+      return this.config.apiSurface;
+    }
+    if (this.detectedApiSurface) return this.detectedApiSurface;
+    if (!this.hasKey) {
+      this.detectedApiSurface = "full";
+      return this.detectedApiSurface;
+    }
+
+    this.detectedApiSurface = (await this.probeSelfserveUsage()) ? "selfserve" : "full";
+    return this.detectedApiSurface;
   }
 
   /**
@@ -107,7 +134,7 @@ export class CrehqClient {
       Authorization: `Bearer ${this.config.apiKey}`,
       "X-API-Key": this.config.apiKey,
       Accept: opts.accept ?? "application/json",
-      "User-Agent": "crehq-mcp-server/0.1.1",
+      "User-Agent": USER_AGENT,
     };
 
     const init: RequestInit = { method: opts.method ?? "GET", headers };
@@ -181,7 +208,7 @@ export class CrehqClient {
         return new CrehqApiError(
           403,
           apiMessage ?? "Forbidden: the API key is invalid, revoked, or not scoped for this endpoint.",
-          `Verify the key is active and that your tier includes this endpoint. Upgrade or request scope at https://crehq.com/api-keys/. Sandbox keys: ${SANDBOX_URL}.`,
+          `Verify the key is active and that your tier includes this endpoint. If this was a request for credit signals, FDD, site-selection criteria, contacts, source provenance, change history, bulk data, whitespace, co-tenancy, site timeline, or higher limits, use crehq_request_upgrade so CREHQ can record upgrade intent. Upgrade or request scope at https://crehq.com/api-keys/. Sandbox keys: ${SANDBOX_URL}.`,
         );
       case 404:
         return new CrehqApiError(
@@ -212,6 +239,28 @@ export class CrehqClient {
           apiMessage ?? `Request failed (${status}).`,
           "Review the parameters against the tool's input schema.",
         );
+    }
+  }
+
+  private async probeSelfserveUsage(): Promise<boolean> {
+    const url = new URL(this.config.apiBase + "/selfserve/usage");
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${this.config.apiKey}`,
+      "X-API-Key": this.config.apiKey,
+      Accept: "application/json",
+      "User-Agent": USER_AGENT,
+    };
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.config.timeoutMs);
+    try {
+      const res = await fetch(url, { method: "GET", headers, signal: controller.signal });
+      await res.arrayBuffer().catch(() => undefined);
+      return res.ok;
+    } catch {
+      return false;
+    } finally {
+      clearTimeout(timer);
     }
   }
 }

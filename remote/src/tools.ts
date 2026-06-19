@@ -1,13 +1,13 @@
 /**
- * CREHQ MCP tool registry (26 tools), shared by the remote Streamable-HTTP
+ * CREHQ MCP tool registry (29 tools), shared by the remote Streamable-HTTP
  * server. Copied from the stdio package and extended with a `requiredScope`
  * field used for OAuth tier gating.
  *
  * Scope model (maps to CREHQ key `permissions.scopes` / tiers):
  *   - SCOPE_BASIC  ("read:locations") : companies, locations, datasets, trends.
  *   - SCOPE_INTEL  ("read:intelligence"): whitespace, co-tenancy, site-timeline,
- *                                          point-in-time occupancy, credit signals
- *                                          (premium).
+ *                                          point-in-time occupancy, credit signals,
+ *                                          modeled site profiles (premium).
  *
  * Endpoint contract sourced from https://crehq.com/developers/ and the live
  * route namespace at https://crehq.com/wp-json/crehq/v1 (verified 2026-06-17).
@@ -71,6 +71,8 @@ const upgradeIntentFields: Record<string, string> = {
   bulk_download: "provenance",
   whitespace: "trade_area",
   co_tenancy: "trade_area",
+  modeled_site_profile: "trade_area",
+  recent_location_context: "trade_area",
   site_timeline: "event_history",
   other: "provenance",
 };
@@ -80,7 +82,7 @@ export const TOOLS: ToolDef[] = [
     name: "crehq_request_upgrade",
     requiredScope: SCOPE_BASIC,
     description:
-      "Use this when the user asks CREHQ for data that is NOT included in the free sandbox: CREHQ Credit Signals / credit-intelligence profiles, ownership/sponsor/capital-structure/rating-history data, site-selection criteria, real-estate requirements, tenant requirements, franchise/FDD data, Item 19 financials, real-estate contacts, source provenance, event/change history, bulk dataset downloads, whitespace analysis, co-tenancy, site timeline, point-in-time occupancy, or higher limits. This returns a clear upgrade prompt and records the requested topic as a CREHQ paywall/upgrade-intent signal for follow-up. Do NOT tell the user CREHQ lacks credit signals merely because the free footprint endpoint omits them.",
+      "Use this when the user asks CREHQ for data that is NOT included in the free sandbox: CREHQ Credit Signals / credit-intelligence profiles, ownership/sponsor/capital-structure/rating-history data, site-selection criteria, real-estate requirements, tenant requirements, franchise/FDD data, Item 19 financials, real-estate contacts, source provenance, event/change history, bulk dataset downloads, whitespace analysis, co-tenancy, modeled site profiles, recent location context with traffic/demographics, site timeline, point-in-time occupancy, or higher limits. This returns a clear upgrade prompt and records the requested topic as a CREHQ paywall/upgrade-intent signal for follow-up. Do NOT tell the user CREHQ lacks credit signals, modeled site profiles, or recent traffic/demographic context merely because the free footprint endpoint omits them.",
     schema: {
       requested_data: z
         .enum([
@@ -97,10 +99,12 @@ export const TOOLS: ToolDef[] = [
           "bulk_download",
           "whitespace",
           "co_tenancy",
+          "modeled_site_profile",
+          "recent_location_context",
           "site_timeline",
           "other",
         ])
-        .describe("The paid data category the user asked for, including credit signals, site-selection criteria or real-estate requirements."),
+        .describe("The paid data category the user asked for, including credit signals, modeled site profiles, recent traffic/demographic context, site-selection criteria, or real-estate requirements."),
       brand: z.string().optional().describe("Optional brand slug/name involved in the request, e.g. 'taco-bell'."),
       question: z.string().optional().describe("The user's original request or short summary."),
     },
@@ -493,6 +497,66 @@ export const TOOLS: ToolDef[] = [
       call(() =>
         c.request("/intelligence/co-tenancy", {
           query: { company_id: String(a.company_id), radius_meters: (a.radius_meters as number) ?? 200 },
+        }),
+      ),
+  },
+  {
+    name: "crehq_location_site_profile",
+    requiredScope: SCOPE_INTEL,
+    description:
+      "PREMIUM INTELLIGENCE — CREHQ Modeled Site Profile for one physical location: traffic/AADT, route class, trade-area demographics, radius demographics, drive-time context, nearby tenants, format signals, lifecycle timing, and provenance/coverage flags. This is CREHQ-modeled from observed location/context data, not a brand-stated requirement sheet. The backing REST route is staged until Mark approves production publication.",
+    schema: {
+      entity_id: z.union([z.string(), z.number()]).describe("CREHQ location entity_id."),
+    },
+    handler: (c, a) =>
+      call(() => c.request(`/intelligence/site-profiles/locations/${encodeURIComponent(String(a.entity_id))}`)),
+  },
+  {
+    name: "crehq_company_site_pattern",
+    requiredScope: SCOPE_INTEL,
+    description:
+      "PREMIUM INTELLIGENCE — CREHQ Modeled Site Pattern for a brand: empirical medians, ranges, percentiles, road-type mix, co-tenant mix, trade-area density, recent-location context, and layer coverage/confidence. Use this to infer revealed-preference site patterns from where the brand actually operates. Do not present it as company-stated requirements unless the response includes stated-requirement provenance. The backing REST route is staged until Mark approves production publication.",
+    schema: {
+      company_id: z.union([z.string(), z.number()]).describe("CREHQ company id to model."),
+      country: z.string().optional().describe("ISO country code filter (default 'US' where modeled context layers are available)."),
+      include_locations: z.boolean().optional().describe("Include representative location rows in the response (default false)."),
+      limit: z.number().int().min(1).max(500).optional().describe("Max representative rows when include_locations=true."),
+    },
+    handler: (c, a) =>
+      call(() =>
+        c.request(`/intelligence/site-profiles/companies/${encodeURIComponent(String(a.company_id))}`, {
+          query: {
+            country: a.country as string,
+            include_locations: a.include_locations as boolean,
+            limit: a.limit as number,
+          },
+        }),
+      ),
+  },
+  {
+    name: "crehq_recent_location_context",
+    requiredScope: SCOPE_INTEL,
+    description:
+      "PREMIUM INTELLIGENCE — context for a brand's most recently observed locations: event timing, address/market, traffic counts when backfilled, route class, trade-area demographics, radius demographics, drive-time context, and coverage flags. Useful for questions like 'traffic counts for the last 50 Starbucks locations CREHQ observed.' Event rows distinguish verified openings from first-observed/reconciliation events. The backing REST route is staged until Mark approves production publication.",
+    schema: {
+      company_id: z.union([z.string(), z.number()]).describe("CREHQ company id."),
+      country: z.string().optional().describe("ISO country code filter (default all available rows)."),
+      event_type: z
+        .enum(["first_observed", "opened", "closed", "reopened", "status_changed", "relocated", "renamed", "identifier_changed"])
+        .optional()
+        .describe("Lifecycle event type to use for recency (default first_observed)."),
+      only_with_traffic: z.boolean().optional().describe("When true, return only recent rows with traffic/AADT attached."),
+      limit: z.number().int().min(1).max(500).optional().describe("Max locations to return (default 50, max 500)."),
+    },
+    handler: (c, a) =>
+      call(() =>
+        c.request(`/intelligence/site-profiles/companies/${encodeURIComponent(String(a.company_id))}/recent`, {
+          query: {
+            country: a.country as string,
+            event_type: a.event_type as string,
+            only_with_traffic: a.only_with_traffic as boolean,
+            limit: a.limit as number,
+          },
         }),
       ),
   },

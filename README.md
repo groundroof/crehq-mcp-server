@@ -15,7 +15,10 @@ anything server-side — it authenticates with your API key and forwards calls.
 
 ---
 
-## What it exposes (28 tools)
+## What it exposes (29 tools)
+
+**Upgrade / paywall routing**
+- `crehq_request_upgrade` — use when a sandbox user asks for premium data such as credit signals, FDD/Item 19, site-selection criteria, real-estate requirements, contacts, source provenance, change history, bulk downloads, whitespace, co-tenancy, or site timeline. With a free sandbox key, this records upgrade intent in CREHQ and returns the user a clear upgrade path instead of saying the data does not exist.
 
 **Companies / brands**
 - `crehq_companies_list` — list brands, filter by category & expansion status
@@ -75,6 +78,10 @@ approval. Until those routes are published, these three tools may return a
      -d '{"email":"you@example.com"}'
    ```
    The key is delivered by email only and looks like `crehq_live_xxxxxxxx…`.
+   Sandbox keys can run bounded location lookups (`crehq_locations_list` by
+   brand, and `crehq_locations_nearby` by radius). If the user asks for premium
+   intelligence, call `crehq_request_upgrade`; it records the requested topic
+   for CREHQ follow-up and tells the user what to upgrade.
 2. **Paid tiers** — Developer from **$99/mo**, Production from **$1,500/mo**,
    Enterprise **$20k+/yr** (dedicated key, SLA, premium intel endpoints).
    See https://crehq.com/developers/ and https://crehq.com/apis/.
@@ -128,8 +135,8 @@ Add this to your `claude_desktop_config.json`:
 {
   "mcpServers": {
     "crehq": {
-      "command": "node",
-      "args": ["/absolute/path/to/crehq-mcp-server/dist/index.js"],
+      "command": "npx",
+      "args": ["-y", "crehq-mcp-server"],
       "env": {
         "CREHQ_API_KEY": "crehq_live_your_key_here"
       }
@@ -185,6 +192,7 @@ Required repository secrets are already named:
 | `CREHQ_API_KEY`    | yes      | —                                            | Your `crehq_live_…` key              |
 | `CREHQ_API_BASE`   | no       | `https://crehq.com/wp-json/crehq/v1`         | Override API base (staging/proxy)    |
 | `CREHQ_TIMEOUT_MS` | no       | `30000`                                      | Per-request timeout in ms            |
+| `CREHQ_API_SURFACE` | no      | `auto`                                       | Auto-detect sandbox vs full key; can be `selfserve` or `full` for debugging |
 
 ---
 
@@ -194,7 +202,7 @@ Tools never crash the agent's turn — failures come back as a readable message
 with a fix-it hint:
 
 - **No key set** → instructs you to set `CREHQ_API_KEY` and links the sandbox.
-- **401 / 403** → "invalid or revoked key / endpoint not in your tier" + upgrade link.
+- **401 / 403** → "invalid or revoked key / endpoint not in your tier" + upgrade link. For credit signals, FDD, site-selection criteria, contacts, provenance, change history, bulk data, whitespace, co-tenancy, or site timeline, call `crehq_request_upgrade`.
 - **404** → "check the id/slug; resolve it with a search tool first."
 - **429** → respects `Retry-After`; reminds you of the free-tier 2 req/s limit.
 - **5xx / timeout / network** → transient-error guidance to retry with backoff.

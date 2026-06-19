@@ -48,12 +48,14 @@ export interface CrehqResult {
 export class CrehqApiError extends Error {
   readonly status: number;
   readonly hint: string;
+  readonly body?: unknown;
 
-  constructor(status: number, message: string, hint = "") {
+  constructor(status: number, message: string, hint = "", body?: unknown) {
     super(message);
     this.name = "CrehqApiError";
     this.status = status;
     this.hint = hint;
+    this.body = body;
   }
 }
 
@@ -164,18 +166,21 @@ export class CrehqClient {
           401,
           apiMessage ?? "Unauthorized: the linked CREHQ API key was not accepted.",
           `The key may be revoked or expired. Re-authorize the connector. Free sandbox keys: ${SIGNUP_URL}.`,
+          body,
         );
       case 403:
         return new CrehqApiError(
           403,
           apiMessage ?? "Forbidden: the API key is not scoped for this endpoint.",
           "Your CREHQ tier does not include this data. Upgrade at https://crehq.com/api-keys/ to unlock it.",
+          body,
         );
       case 404:
         return new CrehqApiError(
           404,
           apiMessage ?? "Not found: the requested record or path does not exist.",
           "Check the id/slug/uid. Use the search tools to resolve an identifier first.",
+          body,
         );
       case 429: {
         const retry = meta["retry-after"];
@@ -183,6 +188,7 @@ export class CrehqClient {
           429,
           apiMessage ?? "Rate limited.",
           retry ? `Slow down and retry after ${retry}s.` : "Slow down and retry shortly.",
+          body,
         );
       }
       default:
@@ -191,12 +197,14 @@ export class CrehqClient {
             status,
             apiMessage ?? `CREHQ server error (${status}).`,
             "Transient server-side issue. Retry with backoff.",
+            body,
           );
         }
         return new CrehqApiError(
           status,
           apiMessage ?? `Request failed (${status}).`,
           "Review the parameters against the tool's input schema.",
+          body,
         );
     }
   }

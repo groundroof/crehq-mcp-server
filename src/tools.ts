@@ -58,6 +58,16 @@ const upgradeIntentFields: Record<string, string> = {
   other: "provenance",
 };
 
+function intentIdLine(err: CrehqApiError): string {
+  const body = err.body;
+  if (!body || typeof body !== "object") return "";
+  const rawIntent = (body as { intent_id?: unknown }).intent_id;
+  if (typeof rawIntent !== "number" && typeof rawIntent !== "string") return "";
+  const intentId = String(rawIntent).trim();
+  if (!intentId) return "";
+  return `\nCREHQ intent_id: ${intentId}. Use this exact intent_id for follow-up; do not invent a separate request_id.`;
+}
+
 export const TOOLS: ToolDef[] = [
   {
     name: "crehq_request_upgrade",
@@ -106,6 +116,7 @@ export const TOOLS: ToolDef[] = [
                     `CREHQ has this type of data, but "${requested}" is not included in the free sandbox tier. ` +
                     `The request${brand ? ` for ${brand}` : ""} has been recorded as upgrade intent. ` +
                     `Upgrade or request production access at https://crehq.com/developers/sandbox/` +
+                    intentIdLine(err) +
                     (a.question ? `\n\nUser request: ${String(a.question)}` : ""),
                 },
               ],

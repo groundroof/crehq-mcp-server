@@ -11,7 +11,7 @@
 
 export const DEFAULT_API_BASE = "https://crehq.com/wp-json/crehq/v1";
 const SANDBOX_URL = "https://crehq.com/developers/sandbox/";
-const USER_AGENT = "crehq-mcp-server/0.1.2";
+const USER_AGENT = "crehq-mcp-server/0.1.3";
 export type CrehqApiSurface = "auto" | "selfserve" | "full";
 
 export interface CrehqConfig {
@@ -47,12 +47,14 @@ export interface CrehqResult {
 export class CrehqApiError extends Error {
   readonly status: number;
   readonly hint: string;
+  readonly body?: unknown;
 
-  constructor(status: number, message: string, hint = "") {
+  constructor(status: number, message: string, hint = "", body?: unknown) {
     super(message);
     this.name = "CrehqApiError";
     this.status = status;
     this.hint = hint;
+    this.body = body;
   }
 }
 
@@ -203,18 +205,21 @@ export class CrehqClient {
           401,
           apiMessage ?? "Unauthorized: no API key was accepted.",
           `Set CREHQ_API_KEY to a valid key. Get a free sandbox key (1,000 calls/mo, no credit card) at ${SANDBOX_URL}.`,
+          body,
         );
       case 403:
         return new CrehqApiError(
           403,
           apiMessage ?? "Forbidden: the API key is invalid, revoked, or not scoped for this endpoint.",
           `Verify the key is active and that your tier includes this endpoint. If this was a request for credit signals, FDD, site-selection criteria, contacts, source provenance, change history, bulk data, whitespace, co-tenancy, site timeline, or higher limits, use crehq_request_upgrade so CREHQ can record upgrade intent. Upgrade or request scope at https://crehq.com/api-keys/. Sandbox keys: ${SANDBOX_URL}.`,
+          body,
         );
       case 404:
         return new CrehqApiError(
           404,
           apiMessage ?? "Not found: the requested record or path does not exist.",
           "Check the id/slug/uid. Use the search tools to resolve an identifier first.",
+          body,
         );
       case 429: {
         const retry = meta["retry-after"];
@@ -224,6 +229,7 @@ export class CrehqClient {
           retry
             ? `Slow down and retry after ${retry}s.`
             : "Slow down (free tier is 2 req/s, 1,000 calls/mo) and retry shortly. Higher limits are available on paid tiers.",
+          body,
         );
       }
       default:
@@ -232,12 +238,14 @@ export class CrehqClient {
             status,
             apiMessage ?? `CREHQ server error (${status}).`,
             "This is a transient server-side issue. Retry with backoff; if it persists, contact CREHQ.",
+            body,
           );
         }
         return new CrehqApiError(
           status,
           apiMessage ?? `Request failed (${status}).`,
           "Review the parameters against the tool's input schema.",
+          body,
         );
     }
   }

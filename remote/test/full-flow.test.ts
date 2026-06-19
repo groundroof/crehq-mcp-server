@@ -127,6 +127,28 @@ async function run(scopeRequest: string, label: string): Promise<void> {
     const gate = await (await mcp({ jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "crehq_whitespace", arguments: { company_id: "1" } } })).json();
     check("mcp: premium tool blocked with upgrade message (no API call)", gate.result?.isError === true && /premium|upgrade|scope/i.test(gate.result?.content?.[0]?.text ?? ""));
   }
+
+  if (TEST_KEY && selfserveCatalog && label === "basic tier") {
+    const upgrade = await (await mcp({
+      jsonrpc: "2.0",
+      id: 5,
+      method: "tools/call",
+      params: {
+        name: "crehq_request_upgrade",
+        arguments: {
+          requested_data: "credit_signals",
+          brand: "aspen-dental",
+          question: "Tell me about Aspen Dental credit signals.",
+        },
+      },
+    })).json();
+    const upgradeText: string = upgrade.result?.content?.[0]?.text ?? "";
+    check(
+      "mcp: request_upgrade returns durable CREHQ intent_id",
+      upgrade.result?.isError === true && /CREHQ intent_id:\s*\d+/i.test(upgradeText) && !/req_[A-Za-z0-9]/.test(upgradeText),
+      upgradeText.replace(/\n/g, " ").slice(0, 180),
+    );
+  }
 }
 
 async function main(): Promise<void> {

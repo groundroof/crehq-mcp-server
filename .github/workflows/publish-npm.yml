@@ -35,6 +35,11 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Verify npm authentication
+        run: npm whoami
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Read package metadata
         id: package
         run: |
@@ -65,4 +70,3 @@ jobs:
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-

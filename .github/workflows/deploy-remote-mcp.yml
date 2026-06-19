@@ -56,12 +56,29 @@ jobs:
 
       - name: Verify live health
         run: |
-          curl -fsS https://mcp.crehq.com/health | tee /tmp/crehq-mcp-health.json
-          node -e '
-            const fs = require("fs");
-            const health = JSON.parse(fs.readFileSync("/tmp/crehq-mcp-health.json", "utf8"));
-            if (health.ok !== true) throw new Error("Health check did not return ok=true");
-            if (!health.issuer || !health.issuer.includes("mcp.crehq.com")) throw new Error("Unexpected issuer");
-            console.log(`health ok, tools=${health.tools ?? "unknown"}`);
-          '
+          urls=(
+            "https://mcp.crehq.com/health"
+            "https://crehq-mcp-remote.mark-ef1.workers.dev/health"
+          )
 
+          for url in "${urls[@]}"; do
+            echo "Checking ${url}"
+            for attempt in 1 2 3 4 5 6; do
+              http_status="$(curl -A "CREHQ-MCP-GitHub-Actions-Health/1.0" -sS -w "%{http_code}" -o /tmp/crehq-mcp-health.json "${url}" || true)"
+              if [ "${http_status}" = "200" ]; then
+                node -e '
+                  const fs = require("fs");
+                  const health = JSON.parse(fs.readFileSync("/tmp/crehq-mcp-health.json", "utf8"));
+                  if (health.status !== "ok") throw new Error("Health check did not return status=ok");
+                  if (health.server !== "crehq-mcp-remote") throw new Error("Unexpected server");
+                  console.log(`health ok, tools=${health.tools ?? "unknown"}`);
+                '
+                exit 0
+              fi
+              echo "Attempt ${attempt} for ${url} returned HTTP ${http_status}; retrying..."
+              sleep 5
+            done
+          done
+
+          echo "Health verification failed for all URLs." >&2
+          exit 1

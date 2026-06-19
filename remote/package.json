@@ -1,0 +1,28 @@
+{
+  "name": "crehq-mcp-remote",
+  "version": "0.1.0",
+  "description": "Hosted, remote CREHQ MCP server (Streamable-HTTP transport + OAuth 2.1) for the Anthropic connector directory. Deploys to Cloudflare Workers; also runs as a local Node dev server.",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "dev": "npm run build && node dist/dev-server.js",
+    "dev:wrangler": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test:oauth": "npm run build && node dist/test/oauth-flow.test.js"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0",
+    "wrangler": "^4.20.0"
+  }
+}

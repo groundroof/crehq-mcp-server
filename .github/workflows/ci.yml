@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stdio-package:
+    name: Stdio MCP package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Verify tool registry
+        run: |
+          node --input-type=module <<'NODE'
+          const { TOOLS } = await import("./dist/tools.js");
+          const names = new Set(TOOLS.map((tool) => tool.name));
+          for (const required of ["crehq_company_credit_signals", "crehq_company_site_pattern"]) {
+            if (!names.has(required)) {
+              throw new Error(`Missing stdio tool: ${required}`);
+            }
+          }
+          console.log(`stdio tools=${TOOLS.length}`);
+          NODE
+
+  remote-worker:
+    name: Remote MCP Worker
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: remote
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: remote/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: OAuth flow test
+        run: npm run test:oauth
+
+      - name: Full connector flow test
+        run: node dist/test/full-flow.test.js
+
+      - name: Verify hosted tool registry
+        run: |
+          node --input-type=module <<'NODE'
+          const { TOOLS } = await import("./dist/src/tools.js");
+          const names = new Set(TOOLS.map((tool) => tool.name));
+          for (const required of ["crehq_company_credit_signals", "crehq_request_upgrade"]) {
+            if (!names.has(required)) {
+              throw new Error(`Missing hosted tool: ${required}`);
+            }
+          }
+          console.log(`remote tools=${TOOLS.length}`);
+          NODE
+

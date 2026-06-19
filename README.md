@@ -3,10 +3,10 @@
 A [Model Context Protocol](https://modelcontextprotocol.io) server that turns
 [CREHQ](https://crehq.com)'s **live location-intelligence REST API** into native
 tools for Claude and other AI agents. Ask an agent *"where should Chipotle open
-next?"*, *"who has ever occupied this address?"*, or *"what are Planet Fitness's
-franchise fees and where are they expanding?"* — and it can actually answer,
+next?"*, *"who has ever occupied this address?"*, *"what are Aspen Dental's
+credit signals?"*, or *"what are Planet Fitness's franchise fees and where are they expanding?"* — and it can actually answer,
 backed by CREHQ's canonical, **multi-source government-verified** database of
-franchise & multi-unit brands, individual storefronts, FDD financials, and
+franchise & multi-unit brands, individual storefronts, FDD financials, credit signals, and
 site-level tenancy history.
 
 This is a thin wrapper over CREHQ's existing production API
@@ -15,12 +15,13 @@ anything server-side — it authenticates with your API key and forwards calls.
 
 ---
 
-## What it exposes (24 tools)
+## What it exposes (28 tools)
 
 **Companies / brands**
 - `crehq_companies_list` — list brands, filter by category & expansion status
 - `crehq_companies_search` — resolve a brand name → CREHQ company id (start here)
 - `crehq_company_get` — canonical brand profile, verified unit count, ownership
+- `crehq_company_credit_signals` — credit profile, sponsor/issuer context, ratings, capital structure
 - `crehq_company_franchise` — FDD fees, royalties, investment, Item 19 figures
 - `crehq_company_real_estate` — site-selection criteria & target geographies
 - `crehq_company_contacts` — real-estate / development decision-maker contacts
@@ -42,6 +43,17 @@ anything server-side — it authenticates with your API key and forwards calls.
 **Premium intelligence** (Intel & Enterprise tiers)
 - `crehq_whitespace` — markets where competitors are present but the brand isn't
 - `crehq_co_tenancy` — which brands cluster near this brand's stores
+- `crehq_location_site_profile` — CREHQ Modeled Site Profile for one location
+- `crehq_company_site_pattern` — empirical brand site pattern from observed footprint/context
+- `crehq_recent_location_context` — recent observed/opening rows with traffic, demographics, and coverage flags
+
+Modeled Site Profile outputs must be described as **CREHQ-modeled from observed
+location/context data**, not as company-stated site requirements unless the
+response includes explicit stated-requirement provenance.
+
+The Modeled Site Profile REST routes are staged pending explicit production
+approval. Until those routes are published, these three tools may return a
+`404` even though the MCP catalog advertises them for local testing.
 
 **Datasets**
 - `crehq_datasets_list` / `crehq_dataset_get` / `crehq_dataset_download` / `crehq_dataset_categories`
@@ -72,6 +84,14 @@ anything server-side — it authenticates with your API key and forwards calls.
 ## Install & build
 
 Requires Node.js ≥ 18.
+
+Install the published stdio server with `npx`:
+
+```bash
+CREHQ_API_KEY=crehq_live_xxxxx npx crehq-mcp-server
+```
+
+Or build from source:
 
 ```bash
 git clone <this-repo> crehq-mcp-server
@@ -129,8 +149,32 @@ the environment.
 
 **Claude Code:**
 ```bash
-claude mcp add crehq --env CREHQ_API_KEY=crehq_live_xxxxx -- node /absolute/path/to/crehq-mcp-server/dist/index.js
+claude mcp add crehq --env CREHQ_API_KEY=crehq_live_xxxxx -- npx crehq-mcp-server
 ```
+
+## Hosted remote connector
+
+The hosted Cloudflare Worker version is kept in `remote/`. It provides the
+same CREHQ connector as a remote MCP server at `https://mcp.crehq.com`, with
+OAuth/key exchange and scope gating for premium tools. Its own deploy notes are
+in `remote/DEPLOY.md` and connector-submission copy is in
+`remote/CONNECTOR-SUBMISSION.md`.
+
+## Maintainer workflow
+
+GitHub Actions owns the repeatable release path:
+
+- `CI` builds and tests the stdio package and the hosted Worker on every push.
+- `Deploy Remote MCP` deploys `remote/` changes to Cloudflare Workers and then
+  verifies `https://mcp.crehq.com/health`.
+- `Publish npm` publishes the stdio package from a `vX.Y.Z` tag or manual
+  workflow dispatch. It skips safely when that package version already exists.
+
+Required repository secrets are already named:
+
+- `NPM_TOKEN`
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
 
 ---
 

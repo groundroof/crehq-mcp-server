@@ -3,7 +3,8 @@
  * CREHQ MCP server — exposes CREHQ's live location-intelligence REST API
  * (https://crehq.com/wp-json/crehq/v1) as Model Context Protocol tools so that
  * Claude and other MCP clients can query brands, locations, FDD financials,
- * site-level tenancy history, whitespace, and co-tenancy as native tools.
+ * site-level tenancy history, whitespace, co-tenancy, and staged modeled site
+ * profile tools as native tools.
  *
  * Transport: stdio (the standard for Claude Desktop / local connectors).
  * Auth:      CREHQ_API_KEY env var (sandbox/dev/prod/enterprise).
@@ -35,7 +36,7 @@ async function main(): Promise<void> {
   }
 
   const server = new Server(
-    { name: "crehq-mcp-server", version: "0.1.0" },
+    { name: "crehq-mcp-server", version: "0.1.1" },
     { capabilities: { tools: {} } },
   );
 

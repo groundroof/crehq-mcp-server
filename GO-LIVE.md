@@ -16,27 +16,32 @@ distribute, here's what's left, in order.
       this server uses (companies, locations, sites/timeline, intelligence,
       datasets, trends). `./test.sh` covers the read GETs; spot-check
       `/sites/{uid}/timeline`, `/intelligence/*`, `/companies/{id}/occupancy`.
+- [ ] Keep the Modeled Site Profile tools staged until Mark approves publishing
+      `/intelligence/site-profiles/*`; the local MCP catalog can advertise the
+      tools, but production users should expect 404s until that route is live.
 
 ## 2. Hosting / distribution model — pick one (or do both)
 
 **A. Local stdio (ship now).** Users run `node dist/index.js` from their own
 machine with their key in env. Zero infra for CREHQ. This is the default and
 what Claude Desktop / Cursor / Claude Code expect.
-- [ ] Publish to npm as `crehq-mcp-server` (already configured with a `bin`)
-      so users can `npx crehq-mcp-server` — no clone/build step.
-- [ ] Tag a GitHub release; add CI that runs `npm run build` + `npm run typecheck`.
+- [x] Publish to npm as `crehq-mcp-server` so users can
+      `npx crehq-mcp-server` — no clone/build step.
+- [x] Add CI that runs `npm run build` + `npm run typecheck`.
+- [ ] Tag future releases as `vX.Y.Z`; GitHub Actions publishes npm from tags
+      or manual dispatch.
 
 **B. Hosted / remote MCP server (scales to non-technical users & web Claude).**
 Wrap the same tool handlers behind a Streamable-HTTP / SSE transport
 (`@modelcontextprotocol/sdk` server with `StreamableHTTPServerTransport`) so
 users add a URL instead of installing anything. This is required for the
 Claude **connector directory** and for Claude.ai web/mobile.
-- [ ] Add an HTTP transport entrypoint alongside the stdio one (share `tools.ts`).
-- [ ] Add OAuth 2.1 (the MCP authorization spec) or a hosted key-exchange so a
+- [x] Add an HTTP transport entrypoint alongside the stdio one.
+- [x] Add OAuth 2.1 (the MCP authorization spec) or a hosted key-exchange so a
       user authorizes once and CREHQ maps the session → their API key, instead
       of pasting a raw key. This is the main net-new work for option B.
-- [ ] Deploy (Cloudflare Workers has first-class remote-MCP support, or any
-      Node host: Fly/Render/Lambda). Terminate TLS, set rate limits per session.
+- [x] Deploy to Cloudflare Workers at `https://mcp.crehq.com`.
+- [x] Add CI deploy workflow for `remote/` changes.
 
 ## 3. Listings / discovery
 - [ ] **Anthropic connector / MCP directory** — submit the hosted server (needs
@@ -74,8 +79,13 @@ per-call metered tier on top of the existing $99/$1,500/$20k plans:
 
 ## Status of this artifact
 - ✅ Builds & typechecks clean (`npm run build`, `npm run typecheck`).
-- ✅ 24 tools, correct names/descriptions/JSON schemas, Zod-validated inputs.
+- ✅ 28 tools, correct names/descriptions/JSON schemas, Zod-validated inputs.
+- ⏳ Modeled Site Profile MCP tools are staged; production REST publication is
+      intentionally held for approval.
 - ✅ Verified end-to-end against the **live** API (real 403 + correct hint;
       MCP handshake, tool list, and validation all pass over stdio).
-- ⏳ Real data rows pending a valid `CREHQ_API_KEY` (sandbox key is emailed).
+- ✅ Published to npm as `crehq-mcp-server`.
+- ✅ Hosted remote MCP source is version-controlled in `remote/` and deployed
+      to Cloudflare Workers.
+- ⏳ Real data rows require a valid `CREHQ_API_KEY` / authorized remote session.
 - ⛔ No production data was created or modified to build this.

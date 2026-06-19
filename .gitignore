@@ -3,3 +3,7 @@ dist/
 .env
 *.log
 .DS_Store
+remote/node_modules/
+remote/dist/
+remote/.wrangler/
+remote/.dev.vars

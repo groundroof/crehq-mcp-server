@@ -1,0 +1,39 @@
+# Cloudflare Workers configuration for the CREHQ remote MCP server.
+#
+# Deploy:   npm run deploy        (== wrangler deploy)
+# Local:    npm run dev:wrangler  (== wrangler dev, serves on http://localhost:8787)
+#
+# Before first deploy you MUST create the KV namespace and paste its id below:
+#   npx wrangler kv namespace create OAUTH_KV
+#   npx wrangler kv namespace create OAUTH_KV --preview
+#
+# Secrets/vars to set (see DEPLOY.md):
+#   npx wrangler secret put ...        (none required for the PoC; key is per-user)
+#   ISSUER is set per-environment below.
+
+name = "crehq-mcp-remote"
+main = "src/worker.ts"
+compatibility_date = "2025-06-01"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+# --- KV: OAuth clients, auth codes, tokens, token->CREHQ-key mappings --------
+# Replace the placeholder ids after running `wrangler kv namespace create`.
+[[kv_namespaces]]
+binding = "OAUTH_KV"
+id = "6537a5ea1bbd4fb198dea75186d0b7be"
+preview_id = "7989402ab0df44f098f6573cb56b4dc2"
+
+# --- Non-secret vars ---------------------------------------------------------
+[vars]
+# Public origin of THIS server. For the custom domain below, set to the https URL.
+# Leave commented to auto-derive from the request origin (fine for *.workers.dev).
+ISSUER = "https://mcp.crehq.com"
+CREHQ_API_BASE = "https://crehq.com/wp-json/crehq/v1"
+CREHQ_TIMEOUT_MS = "30000"
+
+# --- Custom domain (optional; recommended for the directory) -----------------
+# Requires crehq.com (or a chosen zone) to be on this Cloudflare account.
+[[routes]]
+pattern = "mcp.crehq.com"
+custom_domain = true

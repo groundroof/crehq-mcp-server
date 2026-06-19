@@ -1,0 +1,17 @@
+# Local-only vars for `wrangler dev` (copy to .dev.vars, which is gitignored).
+# These are NOT used in production — set production vars in wrangler.toml [vars].
+
+# Public origin of the dev server (auto-derived if unset).
+ISSUER=http://localhost:8787
+
+# CREHQ REST API base.
+CREHQ_API_BASE=https://crehq.com/wp-json/crehq/v1
+CREHQ_TIMEOUT_MS=30000
+
+# DEV-ONLY: skip live CREHQ key validation at consent so you can drive the full
+# OAuth + MCP flow without a real key. Must be the exact string "yes-i-know".
+# NEVER set this in production / wrangler.toml.
+# UNSAFE_SKIP_KEY_VALIDATION=yes-i-know
+
+# For the test harness, to fetch real rows instead of proving the 401/403 path:
+# CREHQ_TEST_API_KEY=crehq_live_xxxxxxxx

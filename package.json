@@ -1,6 +1,7 @@
 {
   "name": "crehq-mcp-server",
-  "version": "0.1.3",
+  "version": "0.1.4",
+  "mcpName": "io.github.groundroof/crehq-mcp-server",
   "description": "Model Context Protocol server that wraps the CREHQ location-intelligence REST API as native AI-agent tools (franchise brands, store locations, FDD financials, credit signals, site tenancy history, whitespace & co-tenancy).",
   "license": "MIT",
   "type": "module",
@@ -30,6 +31,7 @@
     "dist",
     "README.md",
     "GO-LIVE.md",
+    "server.json",
     "LICENSE",
     "NOTICE",
     ".env.example"

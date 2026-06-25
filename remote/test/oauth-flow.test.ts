@@ -30,6 +30,7 @@ import { DEFAULT_API_BASE } from "../src/client.js";
 
 const store = new MemoryStore();
 const ISSUER = "http://localhost:8787";
+type JsonObject = Record<string, any>;
 const cfg: AppConfig = {
   issuer: ISSUER,
   crehqApiBase: (process.env.CREHQ_API_BASE ?? DEFAULT_API_BASE).replace(/\/+$/, ""),
@@ -60,6 +61,9 @@ function form(obj: Record<string, string>): RequestInit {
     body: new URLSearchParams(obj).toString(),
   };
 }
+async function readJson(response: Response): Promise<JsonObject> {
+  return (await response.json()) as JsonObject;
+}
 
 async function main(): Promise<void> {
   console.log("\n=== CREHQ Remote MCP — OAuth 2.1 + Streamable-HTTP E2E ===");
@@ -67,10 +71,10 @@ async function main(): Promise<void> {
   console.log(`Test key:   ${TEST_KEY ? "provided (will fetch real rows)" : "NOT set (will prove the 401/403 path)"}\n`);
 
   // 1. Discovery -------------------------------------------------------------
-  const asMeta = await (await req("/.well-known/oauth-authorization-server")).json();
+  const asMeta = await readJson(await req("/.well-known/oauth-authorization-server"));
   check("discovery: AS metadata", asMeta.issuer === ISSUER && !!asMeta.authorization_endpoint && !!asMeta.token_endpoint);
   check("discovery: PKCE S256 advertised", Array.isArray(asMeta.code_challenge_methods_supported) && asMeta.code_challenge_methods_supported.includes("S256"));
-  const prMeta = await (await req("/.well-known/oauth-protected-resource")).json();
+  const prMeta = await readJson(await req("/.well-known/oauth-protected-resource"));
   check("discovery: protected-resource points at AS", Array.isArray(prMeta.authorization_servers) && prMeta.authorization_servers[0] === ISSUER);
 
   // 2. Dynamic Client Registration ------------------------------------------
@@ -80,7 +84,7 @@ async function main(): Promise<void> {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ client_name: "Claude (test)", redirect_uris: [redirectUri], token_endpoint_auth_method: "none" }),
   });
-  const reg = await regRes.json();
+  const reg = await readJson(regRes);
   check("DCR: 201 + client_id issued", regRes.status === 201 && typeof reg.client_id === "string", reg.client_id);
   const clientId = reg.client_id as string;
 
@@ -143,11 +147,12 @@ async function main(): Promise<void> {
   const consent2 = await req("/authorize/consent", form({ pending_id: pid2, crehq_api_key: TEST_KEY }));
   const code2 = new URL(consent2.headers.get("location") ?? ISSUER).searchParams.get("code") ?? "";
   const badExchange = await req("/token", form({ grant_type: "authorization_code", code: code2, redirect_uri: redirectUri, client_id: clientId, code_verifier: "wrong-verifier" }));
-  check("token: wrong PKCE verifier -> invalid_grant", badExchange.status === 400 && (await badExchange.json()).error === "invalid_grant");
+  const badToken = await readJson(badExchange);
+  check("token: wrong PKCE verifier -> invalid_grant", badExchange.status === 400 && badToken.error === "invalid_grant");
 
   // 6. Token exchange (correct) ----------------------------------------------
   const tokRes = await req("/token", form({ grant_type: "authorization_code", code, redirect_uri: redirectUri, client_id: clientId, code_verifier: verifier }));
-  const tok = await tokRes.json();
+  const tok = await readJson(tokRes);
   check("token: access_token issued", tokRes.status === 200 && typeof tok.access_token === "string");
   check("token: refresh_token issued", typeof tok.refresh_token === "string");
   check("token: cache-control no-store", (tokRes.headers.get("cache-control") ?? "").includes("no-store"));
@@ -161,7 +166,7 @@ async function main(): Promise<void> {
 
   // 8. Refresh ---------------------------------------------------------------
   const refRes = await req("/token", form({ grant_type: "refresh_token", refresh_token: tok.refresh_token, client_id: clientId }));
-  const ref = await refRes.json();
+  const ref = await readJson(refRes);
   check("token: refresh_token grant -> new access_token", refRes.status === 200 && typeof ref.access_token === "string" && ref.access_token !== accessToken);
 
   // 9. MCP without auth ------------------------------------------------------
@@ -173,11 +178,11 @@ async function main(): Promise<void> {
     req("/mcp", { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${accessToken}` }, body: JSON.stringify(msg) });
 
   // 10. initialize -----------------------------------------------------------
-  const initR = await (await mcp({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-03-26", capabilities: {} } })).json();
+  const initR = await readJson(await mcp({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-03-26", capabilities: {} } }));
   check("mcp: initialize returns serverInfo", initR.result?.serverInfo?.name === "crehq-mcp-remote");
 
   // 11. tools/list -----------------------------------------------------------
-  const listR = await (await mcp({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} })).json();
+  const listR = await readJson(await mcp({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }));
   const toolNames: string[] = (listR.result?.tools ?? []).map((t: { name: string }) => t.name);
   check("mcp: tools/list returns tools", toolNames.length > 0, `${toolNames.length} tools visible for granted scopes`);
   const hasIntel = grantedScopes.includes("read:intelligence");
@@ -188,7 +193,7 @@ async function main(): Promise<void> {
   );
 
   // 12. tools/call -> LIVE CREHQ API -----------------------------------------
-  const callR = await (await mcp({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "crehq_locations_list", arguments: { brand: "starbucks", per_page: 2 } } })).json();
+  const callR = await readJson(await mcp({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "crehq_locations_list", arguments: { brand: "starbucks", per_page: 2 } } }));
   const callText: string = callR.result?.content?.[0]?.text ?? "";
   const callOk = !callR.result?.isError && callText.length > 0;
   check("mcp: tools/call crehq_locations_list hit LIVE CREHQ API", callOk, callOk ? "got rows" : `error: ${callText.slice(0, 120)}`);
@@ -196,11 +201,11 @@ async function main(): Promise<void> {
 
   // 13. tier gating ----------------------------------------------------------
   if (!hasIntel) {
-    const gateR = await (await mcp({ jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "crehq_whitespace", arguments: { company_id: "1" } } })).json();
+    const gateR = await readJson(await mcp({ jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "crehq_whitespace", arguments: { company_id: "1" } } }));
     const gateText: string = gateR.result?.content?.[0]?.text ?? "";
     check("mcp: premium tool blocked with upgrade message when scope absent", gateR.result?.isError === true && /premium|upgrade|scope/i.test(gateText));
   } else {
-    const gateR = await (await mcp({ jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "crehq_whitespace", arguments: { company_id: "1" } } })).json();
+    const gateR = await readJson(await mcp({ jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "crehq_whitespace", arguments: { company_id: "1" } } }));
     check("mcp: premium tool reachable with intel scope (proxies to API)", !!gateR.result?.content);
   }
 

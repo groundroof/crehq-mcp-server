@@ -1,0 +1,36 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.groundroof/crehq-mcp-server",
+  "title": "CREHQ Location Intelligence",
+  "description": "CREHQ chain-location tools for brands, sites, franchise data, credit signals, and whitespace.",
+  "repository": {
+    "url": "https://github.com/groundroof/crehq-mcp-server",
+    "source": "github"
+  },
+  "version": "0.1.4",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mcp.crehq.com/mcp"
+    }
+  ],
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "crehq-mcp-server",
+      "version": "0.1.4",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "CREHQ_API_KEY",
+          "description": "Your CREHQ API key. Get a free sandbox key at https://crehq.com/developers/sandbox/.",
+          "isRequired": true,
+          "format": "string",
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}

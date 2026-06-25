@@ -70,13 +70,8 @@ approval. Until those routes are published, these three tools may return a
 ## Getting an API key
 
 1. **Free sandbox** (1,000 calls/mo, 2 req/s, no credit card):
-   https://crehq.com/developers/sandbox/ — enter your email and a key is
-   emailed to you. Or request one via the API:
-   ```bash
-   curl -X POST "https://crehq.com/wp-json/crehq/v1/selfserve/signup" \
-     -H "Content-Type: application/json" \
-     -d '{"email":"you@example.com"}'
-   ```
+   https://crehq.com/developers/sandbox/ — enter your email, complete the
+   browser verification challenge, and a key is emailed to you.
    The key is delivered by email only and looks like `crehq_live_xxxxxxxx…`.
    Sandbox keys can run bounded location lookups (`crehq_locations_list` by
    brand, and `crehq_locations_nearby` by radius). If the user asks for premium
@@ -85,6 +80,22 @@ approval. Until those routes are published, these three tools may return a
 2. **Paid tiers** — Developer from **$99/mo**, Production from **$1,500/mo**,
    Enterprise **$20k+/yr** (dedicated key, SLA, premium intel endpoints).
    See https://crehq.com/developers/ and https://crehq.com/apis/.
+
+---
+
+## Fastest way to try CREHQ in an agent
+
+1. Get a sandbox key at https://crehq.com/developers/sandbox/.
+2. For hosted/remote MCP clients, add `https://mcp.crehq.com/mcp` and authorize
+   with that key.
+3. For local stdio clients, install with `npx -y crehq-mcp-server` and set
+   `CREHQ_API_KEY`.
+4. Ask: `Use CREHQ to list five Planet Fitness locations in Illinois, then ask
+   what premium CREHQ data is available for credit signals.`
+
+Free sandbox keys expose bounded location lookup tools plus
+`crehq_request_upgrade`. Paid/Intel keys expose broader API tools according to
+the key's CREHQ tier.
 
 ---
 
@@ -162,10 +173,13 @@ claude mcp add crehq --env CREHQ_API_KEY=crehq_live_xxxxx -- npx crehq-mcp-serve
 ## Hosted remote connector
 
 The hosted Cloudflare Worker version is kept in `remote/`. It provides the
-same CREHQ connector as a remote MCP server at `https://mcp.crehq.com`, with
+same CREHQ connector as a remote MCP server at `https://mcp.crehq.com/mcp`, with
 OAuth/key exchange and scope gating for premium tools. Its own deploy notes are
 in `remote/DEPLOY.md` and connector-submission copy is in
 `remote/CONNECTOR-SUBMISSION.md`.
+
+The MCP Registry metadata lives in `server.json`, with registry ownership
+declared by `mcpName` in `package.json`.
 
 ## Maintainer workflow
 

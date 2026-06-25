@@ -8,7 +8,7 @@ This is a **deployed, locally-tested** build. It is live at:
 Deployment record:
 
 - Cloudflare Worker: `crehq-mcp-remote`
-- Current deployed Worker version: `abba868d-9cf7-4356-a0f8-1665893ca1eb`
+- Current deployed Worker version: verify with `wrangler deployments list` before relying on this value.
 - KV namespace: wired in `wrangler.toml`
 - Custom domain: `mcp.crehq.com`
 - Deployed by: `mark@groundroof.com`
@@ -40,7 +40,7 @@ Deployment record:
 ## 2. One-time setup
 
 ```bash
-cd ~/crehq-mcp-remote
+cd /Users/markhubert/crehq-mcp-server/remote
 npm install
 npx wrangler login           # authenticate to Mark's Cloudflare account
 
@@ -107,7 +107,7 @@ curl https://mcp.crehq.com/.well-known/oauth-protected-resource
 
 Current smoke-test status:
 
-- `GET /health` returns `200` with `tools: 26`
+- `GET /health` returns `200` with `tools: 29`
 - `GET /.well-known/oauth-authorization-server` returns `200`
 - `GET /.well-known/oauth-protected-resource` returns `200`
 - unauthenticated `POST /mcp` returns `401` with the expected OAuth metadata challenge
@@ -189,10 +189,11 @@ a privacy policy + terms URL; clear tool descriptions (done); least-privilege sc
 2. **Verify in web Claude first:** Settings → Connectors → "Add custom connector" → paste
    `https://mcp.crehq.com/mcp` → complete the OAuth consent → confirm tools appear and a
    `crehq_companies_search` call returns rows. (This is the same flow the directory reviewers run.)
-3. **mcp.so** — submit at `https://mcp.so/submit` (URL + description + category "data/real estate").
-4. **Smithery** — `https://smithery.ai`; add a `smithery.yaml` describing the remote URL + OAuth, or
+3. **MCP Registry** — publish the root `server.json` after the npm package version referenced there is live.
+4. **mcp.so** — submit at `https://mcp.so/submit` (URL + description + category "data/real estate").
+5. **Smithery** — `https://smithery.ai`; add a `smithery.yaml` describing the remote URL + OAuth, or
    submit via their dashboard. (Remote/hosted servers are listed without packaging.)
-5. **PulseMCP** — `https://www.pulsemcp.com/submit` (server URL + metadata).
+6. **PulseMCP** — `https://www.pulsemcp.com/submit` (server URL + metadata).
 
 ---
 

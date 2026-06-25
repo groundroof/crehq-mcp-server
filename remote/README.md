@@ -88,7 +88,7 @@ npm run dev        # builds, then serves on http://localhost:8787
 ```bash
 npm run typecheck            # clean
 npm run test:oauth           # OAuth handshake + live key validation (7 checks)
-node dist/test/full-flow.test.js   # full token + MCP transport mechanics (17 checks)
+node dist/test/full-flow.test.js   # full token + MCP transport mechanics (19+ checks)
 ```
 
 With a real key:
@@ -113,7 +113,7 @@ Verified end-to-end against the **live CREHQ API** in both the Node harness and 
 9. Premium tool with a basic token → clean upgrade message (no API call)
 
 A valid CREHQ key is required for *real rows*; with a dummy key the live API returns a genuine
-**HTTP 403**, which proves the request reached `crehq.com` with the per-user key. The 26-tool catalog
+**HTTP 403**, which proves the request reached `crehq.com` with the per-user key. The 29-tool catalog
 and every OAuth/MCP layer are verified independently of any key.
 
 ## Security notes

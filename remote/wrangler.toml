@@ -13,9 +13,20 @@
 
 name = "crehq-mcp-remote"
 main = "src/worker.ts"
-compatibility_date = "2025-06-01"
+compatibility_date = "2026-06-25"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = true
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 0.01
 
 # --- KV: OAuth clients, auth codes, tokens, token->CREHQ-key mappings --------
 # Replace the placeholder ids after running `wrangler kv namespace create`.

@@ -4,8 +4,9 @@ This is a runnable proof-of-concept today. To turn it into a product CREHQ can
 distribute, here's what's left, in order.
 
 ## 1. Keys & access (smallest lift, do first)
-- [ ] Confirm the self-serve sandbox flow (`POST /selfserve/signup`) actually
-      emails a `crehq_live_…` key, and verify the key works with `./test.sh`.
+- [x] Confirm the self-serve sandbox flow emails a `crehq_live_…` key from the
+      browser form. The signup route is Turnstile-gated in production, so direct
+      unauthenticated cURL signup intentionally returns `403`.
       The key table (`xcrehqy_crehq_api_keys`) stores keys **hashed**
       (`key_prefix` + `key_hash`), so the plaintext is only seen once at issue.
 - [ ] Decide the tier gate for MCP users (sandbox to try, paid for production).
@@ -28,7 +29,7 @@ what Claude Desktop / Cursor / Claude Code expect.
 - [x] Publish to npm as `crehq-mcp-server` so users can
       `npx crehq-mcp-server` — no clone/build step.
 - [x] Add CI that runs `npm run build` + `npm run typecheck`.
-- [ ] Tag future releases as `vX.Y.Z`; GitHub Actions publishes npm from tags
+- [x] Tag future releases as `vX.Y.Z`; GitHub Actions publishes npm from tags
       or manual dispatch.
 
 **B. Hosted / remote MCP server (scales to non-technical users & web Claude).**
@@ -44,13 +45,19 @@ Claude **connector directory** and for Claude.ai web/mobile.
 - [x] Add CI deploy workflow for `remote/` changes.
 
 ## 3. Listings / discovery
+- [x] Add an `mcp` badge + "Connect to Claude" snippet to https://crehq.com/developers/.
+- [x] Add MCP Registry ownership metadata (`mcpName`) and `server.json` for the
+      current official registry path.
+- [ ] **MCP Registry** — publish `io.github.groundroof/crehq-mcp-server` after
+      `crehq-mcp-server@0.1.4` is live on npm. GitHub Actions can authenticate
+      with OIDC.
 - [ ] **Anthropic connector / MCP directory** — submit the hosted server (needs
       option B + OAuth). Highest-intent channel for Claude users.
-- [ ] **`modelcontextprotocol/servers`** GitHub list — PR adding CREHQ under
-      community servers (works for the stdio version).
+- [ ] **`modelcontextprotocol/servers`** — no longer the community directory;
+      it now points users to the MCP Registry. Keep this checked by verifying
+      registry publication instead of opening a PR there.
 - [ ] **mcp.so**, **Smithery**, **PulseMCP**, **Glama** — submit listings;
       Smithery can host/build the stdio server for users automatically.
-- [ ] Add an `mcp` badge + "Connect to Claude" snippet to https://crehq.com/developers/.
 
 ## 4. Productizing & metered pricing (the business case)
 The MCP server is a new, low-friction sales surface: an agent reads the tool
@@ -79,7 +86,7 @@ per-call metered tier on top of the existing $99/$1,500/$20k plans:
 
 ## Status of this artifact
 - ✅ Builds & typechecks clean (`npm run build`, `npm run typecheck`).
-- ✅ 28 tools, correct names/descriptions/JSON schemas, Zod-validated inputs.
+- ✅ 29 tools, correct names/descriptions/JSON schemas, Zod-validated inputs.
 - ⏳ Modeled Site Profile MCP tools are staged; production REST publication is
       intentionally held for approval.
 - ✅ Verified end-to-end against the **live** API (real 403 + correct hint;

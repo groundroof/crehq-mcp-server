@@ -23,6 +23,7 @@ import { DEFAULT_API_BASE } from "../src/client.js";
 
 const ISSUER = "http://localhost:8787";
 const TEST_KEY = (process.env.CREHQ_TEST_API_KEY ?? "").trim();
+type JsonObject = Record<string, any>;
 
 let passed = 0;
 let failed = 0;
@@ -51,10 +52,11 @@ async function run(scopeRequest: string, label: string): Promise<void> {
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams(obj).toString(),
   });
+  const readJson = async (response: Response): Promise<JsonObject> => (await response.json()) as JsonObject;
 
   // DCR
   const redirectUri = "https://claude.ai/api/mcp/auth_callback";
-  const reg = await (await req("/register", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ client_name: "Claude", redirect_uris: [redirectUri] }) })).json();
+  const reg = await readJson(await req("/register", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ client_name: "Claude", redirect_uris: [redirectUri] }) }));
   const clientId = reg.client_id as string;
 
   // PKCE + authorize
@@ -70,21 +72,21 @@ async function run(scopeRequest: string, label: string): Promise<void> {
   check("oauth: authorization code minted", consent.status === 302 && code.length > 0);
 
   // token
-  const tok = await (await req("/token", form({ grant_type: "authorization_code", code, redirect_uri: redirectUri, client_id: clientId, code_verifier: verifier }))).json();
+  const tok = await readJson(await req("/token", form({ grant_type: "authorization_code", code, redirect_uri: redirectUri, client_id: clientId, code_verifier: verifier })));
   check("oauth: access + refresh token issued", typeof tok.access_token === "string" && typeof tok.refresh_token === "string");
   const accessToken = tok.access_token as string;
   const granted = (tok.scope ?? "").split(" ").filter(Boolean);
   console.log(`  ...granted scopes: ${granted.join(", ")}`);
 
   // refresh rotation
-  const ref = await (await req("/token", form({ grant_type: "refresh_token", refresh_token: tok.refresh_token, client_id: clientId }))).json();
+  const ref = await readJson(await req("/token", form({ grant_type: "refresh_token", refresh_token: tok.refresh_token, client_id: clientId })));
   check("oauth: refresh grant -> new access token", typeof ref.access_token === "string" && ref.access_token !== accessToken);
 
   const mcp = (msg: unknown, token = accessToken) =>
     req("/mcp", { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${token}` }, body: JSON.stringify(msg) });
 
   // initialize
-  const init = await (await mcp({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} })).json();
+  const init = await readJson(await mcp({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }));
   check("mcp: initialize -> serverInfo", init.result?.serverInfo?.name === "crehq-mcp-remote", `protocol ${init.result?.protocolVersion}`);
 
   // notification (no id) -> 202 no body
@@ -93,7 +95,7 @@ async function run(scopeRequest: string, label: string): Promise<void> {
 
   // tools/list scope-filtered. A free self-serve sandbox key only exposes the
   // bounded tools that can actually return data on `/selfserve/*`.
-  const list = await (await mcp({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} })).json();
+  const list = await readJson(await mcp({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }));
   const names: string[] = (list.result?.tools ?? []).map((t: { name: string }) => t.name);
   const hasIntel = granted.includes("read:intelligence");
   const selfserveCatalog =
@@ -113,7 +115,7 @@ async function run(scopeRequest: string, label: string): Promise<void> {
   );
 
   // tools/call -> live API (dummy key => real 401, real key => rows)
-  const call = await (await mcp({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "crehq_locations_list", arguments: { brand: "starbucks", per_page: 2 } } })).json();
+  const call = await readJson(await mcp({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "crehq_locations_list", arguments: { brand: "starbucks", per_page: 2 } } }));
   const text: string = call.result?.content?.[0]?.text ?? "";
   if (TEST_KEY) {
     check("mcp: tools/call returned LIVE rows", !call.result?.isError && text.length > 0, "real key");
@@ -124,12 +126,12 @@ async function run(scopeRequest: string, label: string): Promise<void> {
 
   // tier gating for basic-only token
   if (!hasIntel) {
-    const gate = await (await mcp({ jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "crehq_whitespace", arguments: { company_id: "1" } } })).json();
+    const gate = await readJson(await mcp({ jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "crehq_whitespace", arguments: { company_id: "1" } } }));
     check("mcp: premium tool blocked with upgrade message (no API call)", gate.result?.isError === true && /premium|upgrade|scope/i.test(gate.result?.content?.[0]?.text ?? ""));
   }
 
   if (TEST_KEY && selfserveCatalog && label === "basic tier") {
-    const upgrade = await (await mcp({
+    const upgrade = await readJson(await mcp({
       jsonrpc: "2.0",
       id: 5,
       method: "tools/call",
@@ -141,7 +143,7 @@ async function run(scopeRequest: string, label: string): Promise<void> {
           question: "Tell me about Aspen Dental credit signals.",
         },
       },
-    })).json();
+    }));
     const upgradeText: string = upgrade.result?.content?.[0]?.text ?? "";
     check(
       "mcp: request_upgrade returns durable CREHQ intent_id",

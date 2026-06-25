@@ -1,24 +1,24 @@
 # CREHQ hosted MCP connector handoff
 
-Verified locally and deployed on 2026-06-18.
+Verified locally and deployed on 2026-06-25.
 
 ## Current state
 
-- Local project: `/Users/markhubert/crehq-mcp-remote`
+- Local project: `/Users/markhubert/crehq-mcp-server/remote`
 - Cloudflare Worker target: `crehq-mcp-remote`
 - Transport: Streamable HTTP at `POST /mcp`
 - Auth: OAuth 2.1 Authorization Code + PKCE S256, Dynamic Client Registration, refresh-token rotation
-- Tool count: 26 CREHQ tools
+- Tool count: 29 CREHQ tools
 - Basic scope: `read:locations`
 - Premium scope: `read:intelligence`
 - `npm run build` passes.
 - `npm run test:oauth` passes 7/7 without a live key, proving discovery, DCR, PKCE handling, consent rendering, and live invalid-key rejection.
 - Cloudflare auth is available as `mark@groundroof.com`.
 - Worker deployed to `https://mcp.crehq.com` and `https://crehq-mcp-remote.mark-ef1.workers.dev`.
-- Current deployed Worker version: `abba868d-9cf7-4356-a0f8-1665893ca1eb`.
+- Current deployed Worker version: verify with `wrangler deployments list` before relying on this value.
 - KV namespace ids are wired in `wrangler.toml`.
 - Live smoke tests passed:
-  - `GET https://mcp.crehq.com/health` -> `200`, 26 tools
+  - `GET https://mcp.crehq.com/health` -> `200`, 29 tools
   - `GET /.well-known/oauth-authorization-server` -> `200`
   - `GET /.well-known/oauth-protected-resource` -> `200`
   - unauthenticated `POST /mcp` -> `401` with `WWW-Authenticate` metadata pointer
@@ -46,7 +46,7 @@ Recommended default policy:
 The connector is deployed. Re-deploy with:
 
 ```bash
-cd /Users/markhubert/crehq-mcp-remote
+cd /Users/markhubert/crehq-mcp-server/remote
 npm run build
 npm run deploy
 ```
@@ -114,7 +114,7 @@ https://crehq.com/apis/
 
 ### Legal URLs
 
-Verified live on 2026-06-18:
+Verified live on 2026-06-25:
 
 ```text
 https://crehq.com/privacy/
@@ -141,7 +141,7 @@ Do not put the key in public repository files. Give it only in the private revie
 ## Listings after hosted deploy
 
 - Anthropic connector directory: submit hosted MCP URL plus OAuth discovery, privacy, terms, and test key.
-- `modelcontextprotocol/servers`: submit the stdio package or hosted connector metadata, depending on their current contribution format.
+- MCP Registry: publish `server.json` for `io.github.groundroof/crehq-mcp-server`.
 - mcp.so, Smithery, PulseMCP, Glama: submit hosted URL, category, summary, docs link, and legal URLs.
 
 Before final submission, verify each directory's current form requirements. Directory requirements change faster than this repo.

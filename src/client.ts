@@ -11,7 +11,7 @@
 
 export const DEFAULT_API_BASE = "https://crehq.com/wp-json/crehq/v1";
 const SANDBOX_URL = "https://crehq.com/developers/sandbox/";
-const USER_AGENT = "crehq-mcp-server/0.1.3";
+const USER_AGENT = "crehq-mcp-server/0.1.5";
 export type CrehqApiSurface = "auto" | "selfserve" | "full";
 
 export interface CrehqConfig {

@@ -49,7 +49,7 @@ Claude **connector directory** and for Claude.ai web/mobile.
 - [x] Add MCP Registry ownership metadata (`mcpName`) and `server.json` for the
       current official registry path.
 - [ ] **MCP Registry** — publish `io.github.groundroof/crehq-mcp-server` after
-      `crehq-mcp-server@0.1.4` is live on npm. GitHub Actions can authenticate
+      `crehq-mcp-server@0.1.5` is live on npm. GitHub Actions can authenticate
       with OIDC.
 - [ ] **Anthropic connector / MCP directory** — submit the hosted server (needs
       option B + OAuth). Highest-intent channel for Claude users.

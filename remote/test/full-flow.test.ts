@@ -20,6 +20,7 @@ import { handleRequest, type AppConfig } from "../src/router.js";
 import { MemoryStore } from "../src/storage.js";
 import { sha256Base64Url, base64url } from "../src/crypto.js";
 import { DEFAULT_API_BASE } from "../src/client.js";
+import { SCOPE_INTEL, TOOLS } from "../src/tools.js";
 
 const ISSUER = "http://localhost:8787";
 const TEST_KEY = (process.env.CREHQ_TEST_API_KEY ?? "").trim();
@@ -105,7 +106,8 @@ async function run(scopeRequest: string, label: string): Promise<void> {
     names.includes("crehq_request_upgrade");
   check(
     "mcp: tools/list count matches tier",
-    selfserveCatalog || names.length === (hasIntel ? 29 : 21),
+    selfserveCatalog ||
+      names.length === TOOLS.filter((tool) => hasIntel || tool.requiredScope !== SCOPE_INTEL).length,
     `${names.length} tools (intel=${hasIntel}, selfserve=${selfserveCatalog})`,
   );
   check("mcp: intel tools gated in catalog", hasIntel ? names.includes("crehq_whitespace") : !names.includes("crehq_whitespace"));

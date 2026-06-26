@@ -39,6 +39,7 @@ const perPage = z
   .optional()
   .describe("Results per page (max 200, default 50).");
 const page = z.number().int().min(1).optional().describe("Page number for cursor/offset pagination (default 1).");
+const d2LocationFields = "provenance,sources,confidence_score,first_observed_at";
 
 const upgradeIntentFields: Record<string, string> = {
   franchise_fdd: "fdd",
@@ -223,6 +224,10 @@ export const TOOLS: ToolDef[] = [
       brand: z.string().optional().describe("Brand slug or name to filter by (e.g. 'planet-fitness')."),
       state: z.string().optional().describe("US state, 2-letter code or full name (e.g. 'TX')."),
       category: z.string().optional().describe("Vertical/category slug."),
+      include_provenance: z
+        .boolean()
+        .optional()
+        .describe("For CREHQ Pro self-serve keys, include D2 provenance, source, confidence and first-observed fields. Free sandbox keys will return upgrade intent."),
       per_page: perPage,
       page,
     },
@@ -235,6 +240,7 @@ export const TOOLS: ToolDef[] = [
                   brand: a.brand as string,
                   limit: (a.per_page as number) ?? 25,
                   page: a.page as number,
+                  fields: a.include_provenance ? d2LocationFields : undefined,
                 },
               }),
             )
@@ -255,6 +261,93 @@ export const TOOLS: ToolDef[] = [
               query: { brand: a.brand as string, state: a.state as string, category: a.category as string, per_page: a.per_page as number, page: a.page as number },
             }),
           ),
+  },
+  {
+    name: "crehq_purchased_datasets_list",
+    description:
+      "List dataset snapshots purchased by the owner of the connected CREHQ self-serve key. Use this before querying a buyer-owned dataset through MCP. It shows snapshot_as_of, hosted_access_until, whether hosted MCP querying is active, and whether the buyer still owns the file snapshot after hosted access expires.",
+    schema: {
+      include_expired: z
+        .boolean()
+        .optional()
+        .describe("Include expired hosted-access snapshots. Defaults to true so the agent can explain owned-file vs hosted-MCP access."),
+    },
+    handler: (c, a) =>
+      call(() =>
+        c.request("/selfserve/datasets", {
+          query: { include_expired: a.include_expired as boolean },
+        }),
+      ),
+  },
+  {
+    name: "crehq_intelligence_preview",
+    description:
+      "For CREHQ Pro self-serve keys, spend the key's one monthly controlled intelligence preview credit. Returns a bounded evidence frame for a tenant-credit, site-selection, co-tenancy, franchise, or monitoring question without exposing raw premium tables or redistribution rights. Free keys receive a 402 upgrade prompt; full enterprise keys should use the dedicated premium tools directly.",
+    schema: {
+      brand: z.string().optional().describe("Tenant/brand slug or name, e.g. 'family-dollar'."),
+      preview_type: z
+        .enum(["credit_brief", "site_selection", "cotenancy", "franchise", "monitoring"])
+        .optional()
+        .describe("Type of controlled intelligence preview. Defaults to credit_brief."),
+      question: z.string().optional().describe("Short user question to frame the preview."),
+    },
+    handler: async (c, a) =>
+      (await c.apiSurface()) === "selfserve"
+        ? call(() =>
+            c.request("/selfserve/intelligence-preview", {
+              method: "POST",
+              body: {
+                brand: a.brand as string,
+                preview_type: (a.preview_type as string) ?? "credit_brief",
+                question: a.question as string,
+              },
+            }),
+          )
+        : Promise.resolve({
+            content: [
+              {
+                type: "text",
+                text:
+                  "Controlled intelligence previews are for self-serve Pro keys. This key appears to use the full CREHQ API surface; use the dedicated premium tools such as crehq_company_credit_signals, whitespace, co-tenancy, or site-profile tools when the contract includes them.",
+              },
+            ],
+          }),
+  },
+  {
+    name: "crehq_purchased_dataset_locations",
+    description:
+      "Query rows from a dataset snapshot the connected key owner has purchased. This is for buyer-owned point-in-time snapshots, not live CREHQ refresh. The response includes snapshot_as_of, hosted_access_until, artifact basis, and row results. If hosted access expired, it returns an upgrade/update-plan message while acknowledging that the buyer still owns the original file snapshot.",
+    schema: {
+      dataset: z.string().optional().describe("Purchased dataset slug, e.g. 'pilot-flying-j'."),
+      purchase_id: z.number().int().positive().optional().describe("Specific CREHQ purchase id from crehq_purchased_datasets_list."),
+      q: z.string().optional().describe("Optional text search across name/address/city/store id."),
+      city: z.string().optional().describe("Optional city filter."),
+      state: z.string().optional().describe("Optional 2-letter state filter."),
+      country: z.string().optional().describe("Optional 2-letter country filter."),
+      lat: z.number().optional().describe("Latitude for radius search."),
+      lng: z.number().optional().describe("Longitude for radius search."),
+      radius: z.number().positive().max(250).optional().describe("Radius in miles for lat/lng search, max 250."),
+      per_page: perPage,
+      page,
+    },
+    handler: (c, a) =>
+      call(() =>
+        c.request("/selfserve/dataset-locations", {
+          query: {
+            dataset: a.dataset as string,
+            purchase_id: a.purchase_id as number,
+            q: a.q as string,
+            city: a.city as string,
+            state: a.state as string,
+            country: a.country as string,
+            lat: a.lat as number,
+            lng: a.lng as number,
+            radius: a.radius as number,
+            limit: (a.per_page as number) ?? 25,
+            page: a.page as number,
+          },
+        }),
+      ),
   },
   {
     name: "crehq_location_get",
@@ -292,6 +385,10 @@ export const TOOLS: ToolDef[] = [
       radius_mi: z.number().min(0.1).max(100).optional().describe("Search radius in miles (default 5)."),
       brand: z.string().optional().describe("Optional: restrict to one brand."),
       category: z.string().optional().describe("Optional: restrict to one vertical/category."),
+      include_provenance: z
+        .boolean()
+        .optional()
+        .describe("For CREHQ Pro self-serve keys, include D2 provenance, source, confidence and first-observed fields. Free sandbox keys will return upgrade intent."),
       per_page: perPage,
     },
     handler: async (c, a) =>
@@ -304,6 +401,7 @@ export const TOOLS: ToolDef[] = [
                 radius: (a.radius_mi as number) ?? 5,
                 brand: a.brand as string,
                 limit: (a.per_page as number) ?? 25,
+                fields: a.include_provenance ? d2LocationFields : undefined,
               },
             }),
           )

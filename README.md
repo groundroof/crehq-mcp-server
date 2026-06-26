@@ -15,10 +15,11 @@ anything server-side — it authenticates with your API key and forwards calls.
 
 ---
 
-## What it exposes (29 tools)
+## What it exposes (32 tools)
 
 **Upgrade / paywall routing**
 - `crehq_request_upgrade` — use when a sandbox user asks for premium data such as credit signals, FDD/Item 19, site-selection criteria, real-estate requirements, contacts, source provenance, change history, bulk downloads, whitespace, co-tenancy, or site timeline. With a free sandbox key, this records upgrade intent in CREHQ and returns the user a clear upgrade path instead of saying the data does not exist.
+- `crehq_intelligence_preview` — for Pro self-serve keys, spends the one monthly controlled intelligence preview credit and returns a bounded evidence frame without exposing raw premium tables or redistribution rights.
 
 **Companies / brands**
 - `crehq_companies_list` — list brands, filter by category & expansion status
@@ -60,6 +61,8 @@ approval. Until those routes are published, these three tools may return a
 
 **Datasets**
 - `crehq_datasets_list` / `crehq_dataset_get` / `crehq_dataset_download` / `crehq_dataset_categories`
+- `crehq_purchased_datasets_list` — list dataset snapshots purchased by the connected key owner, including snapshot date and hosted MCP access status.
+- `crehq_purchased_dataset_locations` — query rows from a buyer-owned point-in-time dataset snapshot during the hosted access window.
 
 **Trends**
 - `crehq_trends_company` — outlet/fee/financial time series for a brand
@@ -77,9 +80,14 @@ approval. Until those routes are published, these three tools may return a
    brand, and `crehq_locations_nearby` by radius). If the user asks for premium
    intelligence, call `crehq_request_upgrade`; it records the requested topic
    for CREHQ follow-up and tells the user what to upgrade.
-2. **Paid tiers** — Developer from **$99/mo**, Production from **$1,500/mo**,
-   Enterprise **$20k+/yr** (dedicated key, SLA, premium intel endpoints).
-   See https://crehq.com/developers/ and https://crehq.com/apis/.
+2. **Pro MCP** — **$99/mo**, self-serve Stripe checkout. Includes bounded D1
+   location queries, selected D2 provenance fields, 25,000 calls/month, and one
+   controlled intelligence preview per month. Start at
+   https://crehq.com/developers/sandbox/#pro-checkout.
+3. **Datasets / Intelligence / Enterprise** — buy licensed point-in-time
+   dataset snapshots when you need the file; use enterprise licensing for
+   premium intelligence, refresh plans, API/feed delivery, redistribution,
+   embedded rights, and SLAs. See https://crehq.com/pricing/.
 
 ---
 
@@ -94,8 +102,11 @@ approval. Until those routes are published, these three tools may return a
    what premium CREHQ data is available for credit signals.`
 
 Free sandbox keys expose bounded location lookup tools plus
-`crehq_request_upgrade`. Paid/Intel keys expose broader API tools according to
-the key's CREHQ tier.
+`crehq_request_upgrade`. Pro keys add selected D2 provenance and
+`crehq_intelligence_preview`. Paid dataset buyers can query purchased snapshots
+through `crehq_purchased_datasets_list` and
+`crehq_purchased_dataset_locations` during the hosted access window. Intel and
+Enterprise keys expose broader API tools according to the key's CREHQ tier.
 
 ---
 

@@ -1,7 +1,16 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { z } from "zod";
 import { CrehqClient } from "../dist/client.js";
 import { TOOLS, toJsonSchema } from "../dist/tools.js";
+
+const registryManifest = JSON.parse(
+  await readFile(new URL("../server.json", import.meta.url), "utf8"),
+);
+assert.ok(
+  registryManifest.description.length <= 100,
+  `MCP Registry description must be at most 100 characters; received ${registryManifest.description.length}`,
+);
 
 const tool = TOOLS.find((candidate) => candidate.name === "crehq_resolve_entity_affiliation");
 assert.ok(tool, "stdio registry exposes crehq_resolve_entity_affiliation");

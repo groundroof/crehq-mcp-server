@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.groundroof/crehq-mcp-server",
   "title": "CREHQ Location Intelligence",
-  "description": "CREHQ location-intelligence tools for entity affiliation, brands, sites, franchise data, credit signals, and whitespace.",
+  "description": "CREHQ entity affiliation, brand, site, franchise, credit, and location-intelligence tools.",
   "repository": {
     "url": "https://github.com/groundroof/crehq-mcp-server",
     "source": "github"

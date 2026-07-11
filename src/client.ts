@@ -11,7 +11,7 @@
 
 export const DEFAULT_API_BASE = "https://crehq.com/wp-json/crehq/v1";
 const SANDBOX_URL = "https://crehq.com/developers/sandbox/";
-const USER_AGENT = "crehq-mcp-server/0.1.6";
+const USER_AGENT = "crehq-mcp-server/0.1.7";
 export type CrehqApiSurface = "auto" | "selfserve" | "full";
 
 export interface CrehqConfig {
@@ -38,6 +38,15 @@ export interface CrehqResult {
   data: unknown;
   /** Selected response headers (pagination/cache/stream cursors). */
   meta: Record<string, string>;
+}
+
+/** Identity hints accepted by CREHQ's cross-vertical affiliation resolver. */
+export interface AffiliationResolveParams {
+  url?: string;
+  venue_name?: string;
+  address?: string;
+  session_id?: string;
+  source?: string;
 }
 
 /**
@@ -193,6 +202,14 @@ export class CrehqClient {
     }
 
     return { data: parsed, meta };
+  }
+
+  /** Resolve a venue/business identity to its brand, operator, and parent. */
+  async resolveEntityAffiliation(params: AffiliationResolveParams): Promise<CrehqResult> {
+    return this.request("/affiliation/resolve", {
+      method: "POST",
+      body: params,
+    });
   }
 
   /** Map a non-2xx response into a CrehqApiError with an actionable hint. */

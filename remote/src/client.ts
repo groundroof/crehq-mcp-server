@@ -44,6 +44,15 @@ export interface CrehqResult {
   meta: Record<string, string>;
 }
 
+/** Identity hints accepted by CREHQ's cross-vertical affiliation resolver. */
+export interface AffiliationResolveParams {
+  url?: string;
+  venue_name?: string;
+  address?: string;
+  session_id?: string;
+  source?: string;
+}
+
 /** Error carrying enough context for the tool layer to produce a helpful message. */
 export class CrehqApiError extends Error {
   readonly status: number;
@@ -100,7 +109,7 @@ export class CrehqClient {
       Authorization: `Bearer ${this.opts.apiKey}`,
       "X-API-Key": this.opts.apiKey,
       Accept: opts.accept ?? "application/json",
-      "User-Agent": "crehq-mcp-remote/0.1.0",
+      "User-Agent": "crehq-mcp-remote/0.1.1",
     };
 
     const init: RequestInit = { method: opts.method ?? "GET", headers };
@@ -156,6 +165,14 @@ export class CrehqClient {
     }
 
     return { data: parsed, meta };
+  }
+
+  /** Resolve a venue/business identity to its brand, operator, and parent. */
+  async resolveEntityAffiliation(params: AffiliationResolveParams): Promise<CrehqResult> {
+    return this.request("/affiliation/resolve", {
+      method: "POST",
+      body: params,
+    });
   }
 
   private toApiError(status: number, body: unknown, meta: Record<string, string>): CrehqApiError {

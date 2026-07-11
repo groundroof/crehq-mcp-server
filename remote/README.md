@@ -1,7 +1,7 @@
 # CREHQ Remote MCP Server
 
 A **hosted, remote** [Model Context Protocol](https://modelcontextprotocol.io) server that exposes
-CREHQ's location-intelligence REST API (`https://crehq.com/wp-json/crehq/v1`) as 29 native AI-agent
+CREHQ's location-intelligence REST API (`https://crehq.com/wp-json/crehq/v1`) as 33 native AI-agent
 tools — over the **Streamable-HTTP** transport, gated by **OAuth 2.1** (authorization code + PKCE).
 
 Unlike the stdio package (`crehq-mcp-server`, for local Claude Desktop), this server is built to be
@@ -26,15 +26,17 @@ submitted to **Anthropic's connector directory**, mcp.so, Smithery, and PulseMCP
   and a `{access_token → {key, scopes}}` mapping is stored. Every tool call then runs with **that
   user's own key and entitlements**.
 - **Scope / tier gating:**
-  - `read:locations` — companies, locations, datasets, trends, FDD, contacts (21 tools)
+  - `read:locations` — affiliation resolution, companies, locations, datasets, trends, FDD, contacts (25 tools on the full API surface)
   - `read:intelligence` — premium: whitespace, co-tenancy, modeled site profiles, site-timeline, point-in-time occupancy
   - Premium tools are hidden from `tools/list` and return a clean **upgrade message** if a
     basic-scoped token tries to call them.
+  - Self-serve keys see exactly seven tools whose handlers use public or `/selfserve/*` routes; backend entitlements still gate one Free or up to 250 Pro affiliation calls per month, Pro previews, and purchased snapshots.
 
-## The 29 tools
+## The 33 tools
 
-Companies/brands (6) · Locations (7) · Changes/Occupancy/Site-Timeline (3) · Intelligence (5) ·
-Datasets (4) · Trends (2). Tool names and descriptions are identical to the stdio package; see
+Upgrade/paywall (2) · Entity affiliation (1) · Companies/brands (7) · Locations (7) ·
+Changes/Occupancy/Site-Timeline (3) · Intelligence (5) · Datasets (6) · Trends (2).
+Tool names and descriptions are identical to the stdio package; see
 [`src/tools.ts`](./src/tools.ts). Premium (intel-scoped): `crehq_company_credit_signals`, `crehq_whitespace`, `crehq_co_tenancy`,
 `crehq_location_site_profile`, `crehq_company_site_pattern`, `crehq_recent_location_context`,
 `crehq_site_timeline`, `crehq_company_occupancy`.
@@ -56,14 +58,15 @@ src/
   oauth.ts       OAuth 2.1 AS: discovery, DCR, /authorize, /token, PKCE, refresh, key bridging
   consent.ts     Server-rendered consent screen (link your CREHQ key)
   mcp.ts         MCP JSON-RPC handler (initialize / tools/list / tools/call) + tier gating
-  tools.ts       The 29 CREHQ tool definitions (+ requiredScope)
+  tools.ts       The 33 CREHQ tool definitions (+ requiredScope)
   client.ts      CREHQ REST client (per-request key; Fetch-based; runs in Workers + Node)
   crypto.ts      Web Crypto helpers (random tokens, SHA-256, PKCE S256 verify)
   storage.ts     Store interface: KvStore (Workers KV) | MemoryStore (local)
   format.ts      Result/error/upgrade-message formatting
 test/
+  affiliation-tool.test.ts  Resolver schema, selfserve visibility, POST contract, and 402 checkout formatting
   oauth-flow.test.ts  Real-key path (proves live validation; 7 checks)
-  full-flow.test.ts   Full mechanics incl. token issuance + MCP transport (20 checks)
+  full-flow.test.ts   Full mechanics incl. token issuance + MCP transport (21 checks)
 ```
 
 The same `handleRequest(req, store, cfg)` runs in the Worker and in Node — only the storage backend
@@ -87,8 +90,9 @@ npm run dev        # builds, then serves on http://localhost:8787
 ### Tests
 ```bash
 npm run typecheck            # clean
+npm test                     # affiliation contract + full connector mechanics
 npm run test:oauth           # OAuth handshake + live key validation (7 checks)
-node dist/test/full-flow.test.js   # full token + MCP transport mechanics (19+ checks)
+node dist/test/full-flow.test.js   # full token + MCP transport mechanics (21 checks)
 ```
 
 With a real key:
@@ -108,12 +112,12 @@ Verified end-to-end against the **live CREHQ API** in both the Node harness and 
 5. `/token` (code + verifier) → `access_token` + `refresh_token`; wrong verifier → `invalid_grant`;
    code is single-use (replay rejected); refresh grant rotates the token
 6. `/mcp` without Bearer → **401 + `WWW-Authenticate`** (resource_metadata)
-7. `initialize` → serverInfo; `tools/list` → scope-filtered (21 basic / 29 with intel)
+7. `initialize` → serverInfo; `tools/list` → scope-filtered (25 basic / 33 with intel; seven for self-serve keys)
 8. `tools/call crehq_locations_list` with `brand=starbucks` → **proxied to the live sandbox-safe CREHQ API**
 9. Premium tool with a basic token → clean upgrade message (no API call)
 
 A valid CREHQ key is required for *real rows*; with a dummy key the live API returns a genuine
-**HTTP 403**, which proves the request reached `crehq.com` with the per-user key. The 29-tool catalog
+**HTTP 403**, which proves the request reached `crehq.com` with the per-user key. The 33-tool catalog
 and every OAuth/MCP layer are verified independently of any key.
 
 ## Security notes

@@ -20,7 +20,7 @@ import { TOOLS, toJsonSchema } from "./tools.js";
 import { upgradeRequired, type ToolContent } from "./format.js";
 
 export const PROTOCOL_VERSION = "2025-03-26";
-export const SERVER_INFO = { name: "crehq-mcp-remote", version: "0.1.0" } as const;
+export const SERVER_INFO = { name: "crehq-mcp-remote", version: "0.1.1" } as const;
 
 /** Per-request authenticated context resolved from the OAuth access token. */
 export interface McpSession {
@@ -85,7 +85,9 @@ export async function handleRpc(
         capabilities: { tools: { listChanged: false } },
         serverInfo: SERVER_INFO,
         instructions:
-          "CREHQ location-intelligence tools. Resolve a brand to its company id with " +
+          "CREHQ location-intelligence tools. For a venue URL, name, or address, call " +
+          "crehq_resolve_entity_affiliation to identify its brand, operator, parent, or a valid independent/not-commercial/unresolved outcome. " +
+          "If that tool returns HTTP 402, present its exact purchase_url and CREHQ intent_id for user-approved checkout. Checkout emails a new Pro key; install it, reconnect the MCP client, and only then retry. Resolve a known brand to its company id with " +
           "crehq_companies_search first, then call detail/intelligence tools. Premium " +
           "intelligence tools (credit signals, whitespace, co-tenancy, site-timeline, occupancy) require " +
           "the read:intelligence scope. Free sandbox location results are footprint-only; if a user asks for " +
@@ -128,7 +130,7 @@ export async function handleRpc(
                 type: "text",
                 text:
                   `"${tool.name}" is not available with a free CREHQ sandbox key. ` +
-                  "Sandbox keys support bounded location lookups by brand or radius. " +
+                  "Self-serve keys expose entity-affiliation resolution, bounded location lookups, purchased snapshots, a controlled Pro intelligence preview, and upgrade routing when entitled. " +
                   "Use crehq_request_upgrade to record upgrade intent. Upgrade to a production API key to unlock brand search, datasets, FDD, contacts, history, credit signals, and intelligence tools.",
               },
             ],
@@ -191,7 +193,18 @@ function asCallResult(tc: ToolContent): { content: unknown[]; isError?: boolean 
 
 function isVisibleTool(name: string, session: McpSession): boolean {
   if (session.apiSurface !== "selfserve") return true;
-  return name === "crehq_locations_list" || name === "crehq_locations_nearby" || name === "crehq_request_upgrade";
+  switch (name) {
+    case "crehq_request_upgrade":
+    case "crehq_resolve_entity_affiliation":
+    case "crehq_locations_list":
+    case "crehq_locations_nearby":
+    case "crehq_purchased_datasets_list":
+    case "crehq_purchased_dataset_locations":
+    case "crehq_intelligence_preview":
+      return true;
+    default:
+      return false;
+  }
 }
 
 export { RPC };

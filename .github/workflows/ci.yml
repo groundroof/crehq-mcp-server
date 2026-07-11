@@ -35,12 +35,15 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Affiliation tool contract test
+        run: node test/affiliation-tool.test.mjs
+
       - name: Verify tool registry
         run: |
           node --input-type=module <<'NODE'
           const { TOOLS } = await import("./dist/tools.js");
           const names = new Set(TOOLS.map((tool) => tool.name));
-          for (const required of ["crehq_company_credit_signals", "crehq_company_site_pattern"]) {
+          for (const required of ["crehq_resolve_entity_affiliation", "crehq_company_credit_signals", "crehq_company_site_pattern"]) {
             if (!names.has(required)) {
               throw new Error(`Missing stdio tool: ${required}`);
             }
@@ -73,6 +76,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Affiliation tool contract test
+        run: node dist/test/affiliation-tool.test.js
+
       - name: OAuth flow test
         run: npm run test:oauth
 
@@ -84,11 +90,10 @@ jobs:
           node --input-type=module <<'NODE'
           const { TOOLS } = await import("./dist/src/tools.js");
           const names = new Set(TOOLS.map((tool) => tool.name));
-          for (const required of ["crehq_company_credit_signals", "crehq_request_upgrade"]) {
+          for (const required of ["crehq_resolve_entity_affiliation", "crehq_company_credit_signals", "crehq_request_upgrade"]) {
             if (!names.has(required)) {
               throw new Error(`Missing hosted tool: ${required}`);
             }
           }
           console.log(`remote tools=${TOOLS.length}`);
           NODE
-

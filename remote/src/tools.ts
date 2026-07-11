@@ -88,6 +88,76 @@ function intentIdLine(err: CrehqApiError): string {
   return `\nCREHQ intent_id: ${intentId}. Use this exact intent_id for follow-up; do not invent a separate request_id.`;
 }
 
+function affiliationInput(a: Record<string, unknown>): {
+  url?: string;
+  venue_name?: string;
+  address?: string;
+  session_id?: string;
+  source?: string;
+} {
+  return {
+    url: typeof a.url === "string" && a.url.trim() ? a.url.trim() : undefined,
+    venue_name: typeof a.venue_name === "string" && a.venue_name.trim() ? a.venue_name.trim() : undefined,
+    address: typeof a.address === "string" && a.address.trim() ? a.address.trim() : undefined,
+    session_id: typeof a.session_id === "string" && a.session_id.trim() ? a.session_id.trim() : undefined,
+    source: typeof a.source === "string" && a.source.trim() ? a.source.trim() : "mcp",
+  };
+}
+
+function nestedBodyField(body: unknown, field: string): unknown {
+  if (!body || typeof body !== "object") return undefined;
+  const direct = (body as Record<string, unknown>)[field];
+  if (direct !== undefined) return direct;
+  const data = (body as { data?: unknown }).data;
+  return data && typeof data === "object" ? (data as Record<string, unknown>)[field] : undefined;
+}
+
+function affiliationPaymentRequired(err: CrehqApiError): ToolContent {
+  const rawPurchaseUrl = nestedBodyField(err.body, "purchase_url");
+  const rawIntentId = nestedBodyField(err.body, "intent_id");
+  const purchaseUrl = typeof rawPurchaseUrl === "string" ? rawPurchaseUrl.trim() : "";
+  const intentId =
+    typeof rawIntentId === "string" || typeof rawIntentId === "number" ? String(rawIntentId).trim() : "";
+  const details = err.body && typeof err.body === "object" ? `\n\nCREHQ response:\n${JSON.stringify(err.body, null, 2)}` : "";
+
+  return {
+    content: [
+      {
+        type: "text",
+        text:
+          `CREHQ affiliation resolution requires user-approved purchase (HTTP 402): ${err.message}` +
+          `\npurchase_url: ${purchaseUrl || "not returned"}` +
+          `\nCREHQ intent_id: ${intentId || "not returned"}. Use this exact intent_id for follow-up.` +
+          "\nAfter checkout, CREHQ emails a new Pro key. Install that key in this MCP client, reconnect, and then retry the resolver call; the current credential is not upgraded in place." +
+          details,
+      },
+    ],
+    isError: true,
+  };
+}
+
+async function resolveAffiliation(c: CrehqClient, a: Record<string, unknown>): Promise<ToolContent> {
+  const input = affiliationInput(a);
+  if (!input.url && !input.venue_name && !input.address) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Provide at least one identity input: url, venue_name, or address.",
+        },
+      ],
+      isError: true,
+    };
+  }
+
+  try {
+    return ok(await c.resolveEntityAffiliation(input));
+  } catch (err) {
+    if (err instanceof CrehqApiError && err.status === 402) return affiliationPaymentRequired(err);
+    return fail(err);
+  }
+}
+
 export const TOOLS: ToolDef[] = [
   {
     name: "crehq_request_upgrade",
@@ -163,6 +233,21 @@ export const TOOLS: ToolDef[] = [
         isError: true,
       };
     },
+  },
+
+  {
+    name: "crehq_resolve_entity_affiliation",
+    requiredScope: SCOPE_BASIC,
+    description:
+      "Resolve a public venue or business identity across hotels, restaurants, retail, healthcare, banks, auto dealers, EV charging, and other location categories. Use this when the user asks which chain or brand a venue belongs to, who operates or owns a location, or whether a venue is independent. Provide at least one of url, venue_name, or address; additional identity hints improve disambiguation. Returns affiliation_status (branded, independent, not_a_commercial_venue, or unresolved), canonical name, entity type, brand, operator, parent company, confidence, evidence, and checked time. Treat independent, not_a_commercial_venue, and unresolved as valid outcomes; never invent an affiliation beyond the returned evidence. If paid access is required, preserve the exact purchase_url and CREHQ intent_id for user-approved checkout, then install the newly emailed Pro key and reconnect before retrying.",
+    schema: {
+      url: z.string().trim().url().regex(/^[Hh][Tt][Tt][Pp][Ss]?:\/\//, "URL must use http:// or https://").max(2048).optional().describe("Public venue/business website URL using http:// or https://."),
+      venue_name: z.string().trim().min(1).max(200).optional().describe("Venue or business name, used alone or to disambiguate the URL."),
+      address: z.string().trim().min(1).max(300).optional().describe("Street address, city/region, and country when known."),
+      session_id: z.string().trim().min(1).max(96).optional().describe("Optional stable caller session id for attribution and post-purchase retry."),
+      source: z.enum(["landing_page", "mcp", "api", "cli", "unknown"]).optional().describe("Optional non-secret source label. Defaults to mcp."),
+    },
+    handler: resolveAffiliation,
   },
 
   // ========================================================================
@@ -787,27 +872,37 @@ function zodToJson(def: ZodTypeAny): Record<string, unknown> {
   const base = (obj: Record<string, unknown>): Record<string, unknown> =>
     description ? { ...obj, description } : obj;
 
-  const inner = def as unknown as {
-    _def: { typeName: string; innerType?: ZodTypeAny; values?: string[]; type?: ZodTypeAny; options?: ZodTypeAny[] };
+  const inner = def._def as {
+    typeName: string;
+    innerType?: ZodTypeAny;
+    values?: string[];
+    type?: ZodTypeAny;
+    options?: ZodTypeAny[];
+    checks?: Array<{ kind?: string; regex?: RegExp }>;
   };
-  const typeName = inner._def.typeName;
+  const typeName = inner.typeName;
 
   switch (typeName) {
     case "ZodOptional":
     case "ZodDefault":
-      return { ...zodToJson(inner._def.innerType as ZodTypeAny), ...(description ? { description } : {}) };
+      return { ...zodToJson(inner.innerType as ZodTypeAny), ...(description ? { description } : {}) };
     case "ZodString":
-      return base({ type: "string" });
+      const regexCheck = inner.checks?.find((check) => check.kind === "regex" && check.regex instanceof RegExp);
+      return base({
+        type: "string",
+        ...(inner.checks?.some((check) => check.kind === "url") ? { format: "uri" } : {}),
+        ...(regexCheck?.regex ? { pattern: regexCheck.regex.source } : {}),
+      });
     case "ZodNumber":
       return base({ type: "number" });
     case "ZodBoolean":
       return base({ type: "boolean" });
     case "ZodEnum":
-      return base({ type: "string", enum: inner._def.values });
+      return base({ type: "string", enum: inner.values });
     case "ZodArray":
-      return base({ type: "array", items: zodToJson(inner._def.type as ZodTypeAny) });
+      return base({ type: "array", items: zodToJson(inner.type as ZodTypeAny) });
     case "ZodUnion": {
-      const opts = (inner._def.options ?? []).map((o) => zodToJson(o));
+      const opts = (inner.options ?? []).map((o) => zodToJson(o));
       const types = Array.from(new Set(opts.map((o) => o.type).filter(Boolean)));
       return base({ type: types.length === 1 ? types[0] : types });
     }

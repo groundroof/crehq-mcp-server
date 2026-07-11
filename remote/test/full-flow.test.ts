@@ -99,11 +99,17 @@ async function run(scopeRequest: string, label: string): Promise<void> {
   const list = await readJson(await mcp({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }));
   const names: string[] = (list.result?.tools ?? []).map((t: { name: string }) => t.name);
   const hasIntel = granted.includes("read:intelligence");
+  const selfserveTools = [
+    "crehq_request_upgrade",
+    "crehq_resolve_entity_affiliation",
+    "crehq_locations_list",
+    "crehq_locations_nearby",
+    "crehq_purchased_datasets_list",
+    "crehq_purchased_dataset_locations",
+    "crehq_intelligence_preview",
+  ];
   const selfserveCatalog =
-    names.length === 3 &&
-    names.includes("crehq_locations_list") &&
-    names.includes("crehq_locations_nearby") &&
-    names.includes("crehq_request_upgrade");
+    names.length === selfserveTools.length && selfserveTools.every((toolName) => names.includes(toolName));
   check(
     "mcp: tools/list count matches tier",
     selfserveCatalog ||
@@ -115,6 +121,7 @@ async function run(scopeRequest: string, label: string): Promise<void> {
     "mcp: modeled site tools gated in catalog",
     hasIntel ? names.includes("crehq_recent_location_context") : !names.includes("crehq_recent_location_context"),
   );
+  check("mcp: affiliation resolver visible", names.includes("crehq_resolve_entity_affiliation"));
 
   // tools/call -> live API (dummy key => real 401, real key => rows)
   const call = await readJson(await mcp({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "crehq_locations_list", arguments: { brand: "starbucks", per_page: 2 } } }));

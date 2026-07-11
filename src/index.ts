@@ -36,7 +36,7 @@ async function main(): Promise<void> {
   }
 
   const server = new Server(
-    { name: "crehq-mcp-server", version: "0.1.6" },
+    { name: "crehq-mcp-server", version: "0.1.7" },
     { capabilities: { tools: {} } },
   );
 

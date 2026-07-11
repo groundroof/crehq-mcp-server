@@ -42,6 +42,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Affiliation tool contract test
+        run: node dist/test/affiliation-tool.test.js
+
       - name: OAuth flow test
         run: npm run test:oauth
 

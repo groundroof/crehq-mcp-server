@@ -49,7 +49,7 @@ Claude **connector directory** and for Claude.ai web/mobile.
 - [x] Add MCP Registry ownership metadata (`mcpName`) and `server.json` for the
       current official registry path.
 - [ ] **MCP Registry** — publish `io.github.groundroof/crehq-mcp-server` after
-      `crehq-mcp-server@0.1.5` is live on npm. GitHub Actions can authenticate
+      `crehq-mcp-server@0.1.7` is live on npm. GitHub Actions can authenticate
       with OIDC.
 - [ ] **Anthropic connector / MCP directory** — submit the hosted server (needs
       option B + OAuth). Highest-intent channel for Claude users.
@@ -86,7 +86,7 @@ per-call metered tier on top of the existing $99/$1,500/$20k plans:
 
 ## Status of this artifact
 - ✅ Builds & typechecks clean (`npm run build`, `npm run typecheck`).
-- ✅ 29 tools, correct names/descriptions/JSON schemas, Zod-validated inputs.
+- ✅ 33 tools, correct names/descriptions/JSON schemas, Zod-validated inputs.
 - ⏳ Modeled Site Profile MCP tools are staged; production REST publication is
       intentionally held for approval.
 - ✅ Verified end-to-end against the **live** API (real 403 + correct hint;

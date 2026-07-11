@@ -3,8 +3,8 @@
 A [Model Context Protocol](https://modelcontextprotocol.io) server that turns
 [CREHQ](https://crehq.com)'s **live location-intelligence REST API** into native
 tools for Claude and other AI agents. Ask an agent *"where should Chipotle open
-next?"*, *"who has ever occupied this address?"*, *"what are Aspen Dental's
-credit signals?"*, or *"what are Planet Fitness's franchise fees and where are they expanding?"* — and it can actually answer,
+next?"*, *"which hotel chain is this venue affiliated with?"*, *"who has ever
+occupied this address?"*, or *"what are Aspen Dental's credit signals?"* — and it can actually answer,
 backed by CREHQ's canonical, **multi-source government-verified** database of
 franchise & multi-unit brands, individual storefronts, FDD financials, credit signals, and
 site-level tenancy history.
@@ -15,11 +15,14 @@ anything server-side — it authenticates with your API key and forwards calls.
 
 ---
 
-## What it exposes (32 tools)
+## What it exposes (33 tools)
 
 **Upgrade / paywall routing**
 - `crehq_request_upgrade` — use when a sandbox user asks for premium data such as credit signals, FDD/Item 19, site-selection criteria, real-estate requirements, contacts, source provenance, change history, bulk downloads, whitespace, co-tenancy, or site timeline. With a free sandbox key, this records upgrade intent in CREHQ and returns the user a clear upgrade path instead of saying the data does not exist.
 - `crehq_intelligence_preview` — for Pro self-serve keys, spends the one monthly controlled intelligence preview credit and returns a bounded evidence frame without exposing raw premium tables or redistribution rights.
+
+**Entity affiliation**
+- `crehq_resolve_entity_affiliation` — resolve a venue URL, name, or address to an evidence-backed affiliation status, canonical brand, operator, and parent company across hotels, restaurants, retail, healthcare, banks, auto dealers, EV charging, and other location categories. Valid outcomes include branded, independent, not a commercial venue, and unresolved. A paid-access response preserves its exact checkout URL and CREHQ intent id. Checkout emails a new Pro key that must be installed before retrying; the current credential is not upgraded in place.
 
 **Companies / brands**
 - `crehq_companies_list` — list brands, filter by category & expansion status
@@ -77,12 +80,14 @@ approval. Until those routes are published, these three tools may return a
    browser verification challenge, and a key is emailed to you.
    The key is delivered by email only and looks like `crehq_live_xxxxxxxx…`.
    Sandbox keys can run bounded location lookups (`crehq_locations_list` by
-   brand, and `crehq_locations_nearby` by radius). If the user asks for premium
+   brand, and `crehq_locations_nearby` by radius) and call the entity-affiliation
+   resolver once per month. If the user asks for premium
    intelligence, call `crehq_request_upgrade`; it records the requested topic
    for CREHQ follow-up and tells the user what to upgrade.
 2. **Pro MCP** — **$99/mo**, self-serve Stripe checkout. Includes bounded D1
-   location queries, selected D2 provenance fields, 25,000 calls/month, and one
-   controlled intelligence preview per month. Start at
+   location queries, selected D2 provenance fields, 25,000 core calls/month, up
+   to 250 affiliation resolver calls/month, and one controlled intelligence
+   preview per month. Start at
    https://crehq.com/developers/sandbox/#pro-checkout.
 3. **Datasets / Intelligence / Enterprise** — buy licensed point-in-time
    dataset snapshots when you need the file; use enterprise licensing for
@@ -98,15 +103,15 @@ approval. Until those routes are published, these three tools may return a
    with that key.
 3. For local stdio clients, install with `npx -y crehq-mcp-server` and set
    `CREHQ_API_KEY`.
-4. Ask: `Use CREHQ to list five Planet Fitness locations in Illinois, then ask
-   what premium CREHQ data is available for credit signals.`
+4. Ask: `Use CREHQ to identify the brand, operator, and parent affiliation of
+   the venue at https://www.earleycrescent.org/.`
 
-Free sandbox keys expose bounded location lookup tools plus
-`crehq_request_upgrade`. Pro keys add selected D2 provenance and
-`crehq_intelligence_preview`. Paid dataset buyers can query purchased snapshots
-through `crehq_purchased_datasets_list` and
-`crehq_purchased_dataset_locations` during the hosted access window. Intel and
-Enterprise keys expose broader API tools according to the key's CREHQ tier.
+Self-serve keys expose the affiliation resolver, bounded location lookups,
+upgrade routing, purchased-dataset access, and the controlled intelligence
+preview. The backend still enforces the key's actual Free, Pro, and purchased
+dataset entitlements, returning a structured upgrade or purchase response when
+needed. Intel and Enterprise keys expose broader API tools according to the
+key's CREHQ tier.
 
 ---
 

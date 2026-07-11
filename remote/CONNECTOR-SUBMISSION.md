@@ -8,7 +8,7 @@ Verified locally and deployed on 2026-06-25.
 - Cloudflare Worker target: `crehq-mcp-remote`
 - Transport: Streamable HTTP at `POST /mcp`
 - Auth: OAuth 2.1 Authorization Code + PKCE S256, Dynamic Client Registration, refresh-token rotation
-- Tool count: 29 CREHQ tools
+- Local candidate tool count: 33 CREHQ tools; the last recorded deployment had 29 and must be reverified after deployment.
 - Basic scope: `read:locations`
 - Premium scope: `read:intelligence`
 - `npm run build` passes.
@@ -17,7 +17,7 @@ Verified locally and deployed on 2026-06-25.
 - Worker deployed to `https://mcp.crehq.com` and `https://crehq-mcp-remote.mark-ef1.workers.dev`.
 - Current deployed Worker version: verify with `wrangler deployments list` before relying on this value.
 - KV namespace ids are wired in `wrangler.toml`.
-- Live smoke tests passed:
+- Historical live smoke tests passed on 2026-06-25:
   - `GET https://mcp.crehq.com/health` -> `200`, 29 tools
   - `GET /.well-known/oauth-authorization-server` -> `200`
   - `GET /.well-known/oauth-protected-resource` -> `200`
@@ -27,6 +27,7 @@ Verified locally and deployed on 2026-06-25.
   - sandbox tool catalog -> 3 tools: `crehq_locations_list`, `crehq_locations_nearby`, `crehq_request_upgrade`
   - sandbox `crehq_locations_list` call with `brand=starbucks` -> live rows
   - sandbox `crehq_request_upgrade` call for FDD/franchise data -> upgrade prompt and self-serve intent logging
+- After this candidate is deployed, expect 33 total tools and a seven-tool self-serve catalog that adds affiliation resolution, purchased-dataset access, and the controlled intelligence preview. Reverify backend entitlement responses before updating this historical record.
 
 ## Remaining go-live items
 
@@ -74,11 +75,11 @@ CREHQ Location Intelligence
 
 ### Short description
 
-Verified U.S. retail, franchise, and multi-unit location intelligence for AI agents.
+Evidence-backed brand, operator, parent-company, and location intelligence for AI agents.
 
 ### Long description
 
-CREHQ gives AI agents authenticated access to verified location-intelligence data for retail, restaurant, franchise, banking, healthcare, auto, nonprofit, hotel, and other multi-unit brands. Agents can resolve brand identities, search current and historical storefronts, inspect FDD/franchise economics, pull real-estate/site-selection criteria, identify operator and development contacts, review lifecycle events, analyze site tenancy history, and use premium whitespace and co-tenancy intelligence where the user has the right CREHQ tier.
+CREHQ gives AI agents authenticated access to verified location-intelligence data for retail, restaurant, franchise, banking, healthcare, auto, nonprofit, hotel, and other multi-unit brands. Given a venue URL, name, or address, agents can resolve whether it is branded, independent, not a commercial venue, or unresolved, with canonical brand, operator, parent company, confidence, and evidence when available. Agents can also search current and historical storefronts, inspect FDD/franchise economics, pull real-estate/site-selection criteria, identify operator and development contacts, review lifecycle events, analyze site tenancy history, and use premium whitespace and co-tenancy intelligence where the user has the right CREHQ tier.
 
 CREHQ data is license-controlled. Free sandbox keys expose limited read access for evaluation; paid API tiers govern production volume, downloads, and premium intelligence.
 

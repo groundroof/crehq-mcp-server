@@ -36,6 +36,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Affiliation tool contract test
+        run: node test/affiliation-tool.test.mjs
+
       - name: Verify npm authentication
         run: npm whoami
         env:

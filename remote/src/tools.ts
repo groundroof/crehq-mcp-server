@@ -707,6 +707,12 @@ export const TOOLS: ToolDef[] = [
       radius_mi: z.number().min(0.1).max(100).optional().describe("Search radius in miles (default 5)."),
       brand: z.string().optional().describe("Optional: restrict to one brand."),
       category: z.string().optional().describe("Optional: restrict to one vertical/category."),
+      include_noncommercial: z
+        .boolean()
+        .optional()
+        .describe(
+          "Radius results leave out IRS nonprofit-registry addresses, ATM networks, EV chargers and libraries by default. Set true to include them (e.g. counting chargers or civic anchors near a site)."
+        ),
       include_provenance: z
         .boolean()
         .optional()
@@ -724,6 +730,7 @@ export const TOOLS: ToolDef[] = [
                 brand: a.brand as string,
                 limit: (a.per_page as number) ?? 25,
                 fields: a.include_provenance ? d2LocationFields : undefined,
+                include_noncommercial: a.include_noncommercial ? "1" : undefined,
               },
             }),
           )
@@ -736,6 +743,7 @@ export const TOOLS: ToolDef[] = [
                 brand: a.brand as string,
                 category: a.category as string,
                 per_page: a.per_page as number,
+                include_noncommercial: a.include_noncommercial ? "1" : undefined,
               },
             }),
           ),

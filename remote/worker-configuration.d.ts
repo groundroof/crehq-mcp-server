@@ -6,6 +6,9 @@ interface __BaseEnv_Env {
 	ISSUER: "https://mcp.crehq.com";
 	CREHQ_API_BASE: "https://crehq.com/wp-json/crehq/v1";
 	CREHQ_TIMEOUT_MS: "30000";
+	CREHQ_SITE_ORIGIN: "https://crehq.com";
+	/** Secret (wrangler secret put). Optional: unset disables "Sign in with CREHQ". */
+	CREHQ_CONNECT_SECRET?: string;
 }
 declare namespace Cloudflare {
 	interface GlobalProps {
@@ -18,7 +21,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "ISSUER" | "CREHQ_API_BASE" | "CREHQ_TIMEOUT_MS">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "ISSUER" | "CREHQ_API_BASE" | "CREHQ_TIMEOUT_MS" | "CREHQ_SITE_ORIGIN" | "CREHQ_CONNECT_SECRET">> {}
 }
 
 // Begin runtime types

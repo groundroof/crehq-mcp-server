@@ -1,10 +1,12 @@
 /**
  * Server-rendered OAuth consent screen. Plain HTML (no framework) so it works
- * identically in Workers and Node. The user authorizes the connector and links
- * their CREHQ API key here; the form POSTs to /authorize/consent.
+ * identically in Workers and Node.
  *
- * In PRODUCTION this paste step is replaced by "Sign in with CREHQ" (a redirect
- * to the WordPress login that issues/looks-up a scoped key) — see DEPLOY.md.
+ * Primary path: "Sign in with CREHQ" — a link to the CREHQ WordPress approval
+ * page (/mcp-connect/), which redirects back to /authorize/crehq-callback.
+ * Secondary path: "Use an API key instead" — the paste form, which POSTs to
+ * /authorize/consent. When sign-in is disabled (no CREHQ_CONNECT_SECRET) the
+ * button is omitted and the paste form is shown directly.
  */
 function esc(s: string): string {
   return s
@@ -19,6 +21,8 @@ export function consentPage(opts: {
   pendingId: string;
   clientName: string;
   scopes: string[];
+  /** CREHQ approval URL; null/undefined hides the sign-in button (paste only). */
+  signInUrl?: string | null;
   error?: string;
 }): string {
   const scopeLabels: Record<string, string> = {
@@ -34,6 +38,26 @@ export function consentPage(opts: {
     ? `<div class="error" role="alert">${esc(opts.error)}</div>`
     : "";
 
+  const pasteForm = `<form method="POST" action="/authorize/consent" autocomplete="off">
+      <input type="hidden" name="pending_id" value="${esc(opts.pendingId)}">
+      <label for="apikey">Your CREHQ API key</label>
+      <input id="apikey" name="crehq_api_key" type="password" placeholder="crehq_live_..." required
+        autocapitalize="off" autocorrect="off" spellcheck="false">
+      <p class="hint">Paste the key from your <a href="https://crehq.com/api-keys/" target="_blank" rel="noopener">CREHQ account</a>,
+        or get a free sandbox key (1,000 calls/mo; rows per brand are limited monthly, and each response shows your exact row budget) at <a href="https://crehq.com/developers/sandbox/" target="_blank" rel="noopener">crehq.com/developers/sandbox</a>.
+        Your tier determines whether premium intelligence tools are unlocked.</p>
+      <button type="submit"${opts.signInUrl ? ' class="secondary"' : ""}>Authorize${opts.signInUrl ? " with API key" : ""}</button>
+    </form>`;
+
+  const authBlock = opts.signInUrl
+    ? `<a class="btn" id="crehq-signin" href="${esc(opts.signInUrl)}">Sign in with CREHQ</a>
+    <p class="hint center">You will sign in on crehq.com and approve this connection there. No key to copy.</p>
+    <details class="alt"${opts.error ? " open" : ""}>
+      <summary>Use an API key instead</summary>
+      ${pasteForm}
+    </details>`
+    : pasteForm;
+
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -46,8 +70,8 @@ export function consentPage(opts: {
   body { font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     margin: 0; background: #0b1220; color: #e8edf5; display: flex; min-height: 100vh; align-items: center; justify-content: center; }
   .card { background: #131c2e; border: 1px solid #243149; border-radius: 14px; max-width: 460px; width: calc(100% - 32px);
-    padding: 28px 30px; box-shadow: 0 12px 40px rgba(0,0,0,.4); }
-  h1 { font-size: 19px; margin: 0 0 4px; }
+    padding: 28px 30px; box-shadow: 0 12px 40px rgba(0,0,0,.4); box-sizing: border-box; }
+  h1 { font-size: 19px; margin: 0 0 4px; overflow-wrap: anywhere; }
   .sub { color: #94a3b8; font-size: 13px; margin: 0 0 18px; }
   .brand { font-weight: 700; color: #38bdf8; }
   ul { padding-left: 18px; margin: 8px 0 18px; }
@@ -58,9 +82,14 @@ export function consentPage(opts: {
     border: 1px solid #2c3a55; background: #0b1220; color: #e8edf5; font-size: 14px; font-family: ui-monospace, monospace; }
   .hint { font-size: 12px; color: #7c8aa3; margin-top: 6px; }
   .hint a { color: #38bdf8; }
-  button { margin-top: 18px; width: 100%; padding: 12px; border: 0; border-radius: 9px; background: #2563eb; color: #fff;
-    font-size: 15px; font-weight: 600; cursor: pointer; }
-  button:hover { background: #1d4ed8; }
+  .center { text-align: center; }
+  button, .btn { display: block; box-sizing: border-box; margin-top: 18px; width: 100%; padding: 12px; border: 0; border-radius: 9px;
+    background: #2563eb; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; text-align: center; text-decoration: none; }
+  button:hover, .btn:hover { background: #1d4ed8; }
+  button.secondary { background: #1e293b; border: 1px solid #334155; }
+  button.secondary:hover { background: #273449; }
+  details.alt { margin-top: 18px; border-top: 1px solid #243149; padding-top: 12px; }
+  details.alt summary { cursor: pointer; font-size: 13px; color: #94a3b8; }
   .error { background: #3b1418; border: 1px solid #7f1d1d; color: #fca5a5; padding: 10px 12px; border-radius: 9px;
     font-size: 13px; margin-bottom: 16px; }
   .foot { margin-top: 16px; font-size: 11.5px; color: #64748b; text-align: center; }
@@ -73,16 +102,7 @@ export function consentPage(opts: {
     ${errorBlock}
     <p style="font-size:13.5px;color:#cbd5e1;margin:0 0 4px;">This connector will be allowed to:</p>
     <ul>${scopeList}</ul>
-    <form method="POST" action="/authorize/consent" autocomplete="off">
-      <input type="hidden" name="pending_id" value="${esc(opts.pendingId)}">
-      <label for="apikey">Your CREHQ API key</label>
-      <input id="apikey" name="crehq_api_key" type="password" placeholder="crehq_live_..." required
-        autocapitalize="off" autocorrect="off" spellcheck="false">
-      <p class="hint">Paste the key from your <a href="https://crehq.com/api-keys/" target="_blank" rel="noopener">CREHQ account</a>,
-        or get a free sandbox key (1,000 calls/mo; rows per brand are limited monthly, and each response shows your exact row budget) at <a href="https://crehq.com/developers/sandbox/" target="_blank" rel="noopener">crehq.com/developers/sandbox</a>.
-        Your tier determines whether premium intelligence tools are unlocked.</p>
-      <button type="submit">Authorize</button>
-    </form>
+    ${authBlock}
     <p class="foot">Your key is stored only to make API calls on your behalf and is never shown to the AI client.</p>
   </main>
 </body>

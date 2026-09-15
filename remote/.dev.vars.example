@@ -8,6 +8,11 @@ ISSUER=http://localhost:8787
 CREHQ_API_BASE=https://crehq.com/wp-json/crehq/v1
 CREHQ_TIMEOUT_MS=30000
 
+# "Sign in with CREHQ": WordPress origin hosting /mcp-connect/, and the HMAC
+# secret shared with it. Leave the secret unset for paste-an-API-key only.
+CREHQ_SITE_ORIGIN=https://crehq.com
+# CREHQ_CONNECT_SECRET=
+
 # DEV-ONLY: skip live CREHQ key validation at consent so you can drive the full
 # OAuth + MCP flow without a real key. Must be the exact string "yes-i-know".
 # NEVER set this in production / wrangler.toml.

@@ -16,6 +16,8 @@
 import { apiMessage as guidanceMessage, hintForCode } from "./guidance.js";
 
 export const DEFAULT_API_BASE = "https://crehq.com/wp-json/crehq/v1";
+/** Public CREHQ WordPress origin that hosts the "Sign in with CREHQ" approval page (/mcp-connect/). */
+export const DEFAULT_SITE_ORIGIN = "https://crehq.com";
 const SIGNUP_URL = "https://crehq.com/developers/sandbox/";
 
 export interface CrehqClientOptions {

@@ -19,14 +19,24 @@ export function randomToken(bytes = 32): string {
   return base64url(buf);
 }
 
-/** SHA-256 of a UTF-8 string, returned as a hex digest. */
-export async function sha256Hex(input: string): Promise<string> {
-  const data = new TextEncoder().encode(input);
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  const b = new Uint8Array(digest);
+function toHex(bytes: ArrayBuffer): string {
+  const b = new Uint8Array(bytes);
   let hex = "";
   for (let i = 0; i < b.length; i++) hex += b[i].toString(16).padStart(2, "0");
   return hex;
+}
+
+/** SHA-256 of a UTF-8 string, returned as a hex digest. */
+export async function sha256Hex(input: string): Promise<string> {
+  const data = new TextEncoder().encode(input);
+  return toHex(await crypto.subtle.digest("SHA-256", data));
+}
+
+/** HMAC-SHA256(secret, message) over UTF-8 strings, returned as lowercase hex. */
+export async function hmacSha256Hex(secret: string, message: string): Promise<string> {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return toHex(await crypto.subtle.sign("HMAC", key, enc.encode(message)));
 }
 
 /** SHA-256 of a UTF-8 string, returned base64url (for PKCE S256). */

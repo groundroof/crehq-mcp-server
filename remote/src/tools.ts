@@ -64,6 +64,43 @@ const d2LocationFields = "provenance,sources,confidence_score,first_observed_at"
 const selfServeGuidanceNote =
   "On CREHQ self-serve/sandbox keys the rows you receive per brand are limited monthly: every response states the exact row_budget, a coverage_note, and the full_dataset offer when a complete file is on sale. Relay those to the user instead of paging or re-filtering around the limit. If a brand is not found, retry with one of the did_you_mean slugs the error returns.";
 
+/** Site types accepted by /selfserve/site-selector/match (comma list). */
+const SITE_SELECTOR_SITE_TYPES = [
+  "endcap",
+  "inline",
+  "freestanding",
+  "pad",
+  "drive_thru",
+  "strip_center",
+  "shopping_center",
+  "lifestyle_center",
+  "mall",
+  "urban",
+  "non_traditional",
+  "conversion",
+  "office",
+  "industrial",
+] as const;
+const siteTypeAlternation = SITE_SELECTOR_SITE_TYPES.join("|");
+const siteTypeListPattern = new RegExp(`^\\s*(?:${siteTypeAlternation})\\s*(?:,\\s*(?:${siteTypeAlternation})\\s*)*$`);
+const usStateCode = z.string().trim().regex(/^[A-Za-z]{2}$/, "Use a 2-letter US state code, e.g. IN.");
+const nonNegativeInt = z.number().int().min(0);
+
+/** Normalize "a, b ,c" to "a,b,c"; undefined when empty. */
+function commaList(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const joined = value
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(",");
+  return joined || undefined;
+}
+
+function upperState(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim().toUpperCase() : undefined;
+}
+
 const upgradeIntentFields: Record<string, string> = {
   franchise_fdd: "fdd",
   item19_financials: "item19",
@@ -339,6 +376,135 @@ export const TOOLS: ToolDef[] = [
       "Get real-estate decision-maker contacts for a brand (development, site-selection, and franchising roles) compiled from public records and the brand's own disclosures. The shortcut from 'which brand is expanding' to 'who do I email'.",
     schema: { id: z.union([z.string(), z.number()]).describe("CREHQ company id (from crehq_companies_search).") },
     handler: (c, a) => call(() => c.request(`/company/${encodeURIComponent(String(a.id))}/contacts`)),
+  },
+
+  // ========================================================================
+  // SITE SELECTION  (CREHQ self-serve routes; visible on selfserve AND full keys)
+  // ========================================================================
+  {
+    name: "crehq_site_selector_match",
+    requiredScope: SCOPE_BASIC,
+    description:
+      "CREHQ's tenant-shortlist engine for a vacant unit. Describe the space (size, site type, state, category) and, optionally, what you measured at the site (AADT traffic, population and household income within a radius) and its co-tenants; it returns a ranked list of brands that could fit. It keeps two kinds of evidence apart: STATED fit, from what a brand PUBLISHES about the space it wants, and REVEALED fit, from percentiles over where the brand actually operates today across its current US estate. Coverage is uneven: many brands publish no requirements, and revealed percentiles exist only where CREHQ has the underlying location and context data. Every response carries measured coverage in `limits`, and the response `notes` explain how the criteria were applied. Read `limits` and `notes` before concluding a brand does not fit: a missing published value or thin revealed coverage is not evidence of a mismatch, and include_unknown=true keeps brands that lack evidence for a criterion. A shortlist entry is evidence for outreach, not confirmation that the brand wants this site. Use crehq_company_site_requirements to see one brand's published criteria and sources.",
+    schema: {
+      sqft: z.number().int().positive().optional().describe("Size of the vacant unit in square feet."),
+      site_type: z
+        .string()
+        .trim()
+        .toLowerCase()
+        .regex(siteTypeListPattern, `site_type must be a comma list of: ${SITE_SELECTOR_SITE_TYPES.join(", ")}.`)
+        .optional()
+        .describe(`Comma-separated site type(s) of the unit. Allowed: ${SITE_SELECTOR_SITE_TYPES.join(", ")}.`),
+      category: z.string().trim().min(1).optional().describe("Optional brand category to shortlist within, e.g. 'restaurant'."),
+      state: usStateCode.optional().describe("2-letter US state of the site, e.g. 'IN'."),
+      aadt_actual: nonNegativeInt.optional().describe("Annual average daily traffic (vehicles/day) you measured at the site."),
+      population_actual: nonNegativeInt.optional().describe("Population you measured within `radius` miles of the site."),
+      hhi_actual: nonNegativeInt.optional().describe("Household income (USD) you measured within `radius` miles of the site."),
+      radius: z.number().int().positive().optional().describe("Radius in miles that your population/income measurements cover."),
+      revealed_strictness: z
+        .enum(["core", "operating", "rank"])
+        .optional()
+        .describe("How strictly revealed (current-estate) evidence is applied: core, operating, or rank. The response notes describe how the chosen mode was applied."),
+      cotenants: z
+        .string()
+        .trim()
+        .min(1)
+        .optional()
+        .describe("Comma-separated CREHQ brand slugs of existing co-tenants at or next to the site, e.g. 'target,starbucks'."),
+      cotenant_class: z.string().trim().min(1).optional().describe("Optional co-tenant class label for the site, passed to CREHQ as-is."),
+      include_unknown: z
+        .boolean()
+        .optional()
+        .describe("When true, keep brands that have no stated or revealed evidence for a criterion instead of dropping them."),
+      franchise_available: z
+        .boolean()
+        .optional()
+        .describe("When true, limit to brands CREHQ records as offering franchises; brands with unrecorded franchise status may be excluded."),
+      sort: z.enum(["score", "name", "locations", "size", "fit"]).optional().describe("Sort order: score, name, locations, size, or fit."),
+      page,
+      per_page: z.number().int().min(1).max(50).optional().describe("Results per page (max 50)."),
+    },
+    handler: (c, a) =>
+      call(() =>
+        c.request("/selfserve/site-selector/match", {
+          query: {
+            sqft: a.sqft as number,
+            site_type: commaList(a.site_type),
+            category: a.category as string,
+            state: upperState(a.state),
+            aadt_actual: a.aadt_actual as number,
+            population_actual: a.population_actual as number,
+            hhi_actual: a.hhi_actual as number,
+            radius: a.radius as number,
+            revealed_strictness: a.revealed_strictness as string,
+            cotenants: commaList(a.cotenants),
+            cotenant_class: a.cotenant_class as string,
+            include_unknown: a.include_unknown as boolean,
+            franchise_available: a.franchise_available as boolean,
+            sort: a.sort as string,
+            page: a.page as number,
+            per_page: a.per_page as number,
+          },
+        }),
+      ),
+  },
+  {
+    name: "crehq_brands_matching_site",
+    requiredScope: SCOPE_BASIC,
+    description:
+      "Match a described site (size, site type, traffic, population, income, co-tenants, state) against the site requirements CREHQ has recorded for brands, and return the brands that are compatible. Recorded requirements are partial: many brands have none, so a brand's absence from the results is not proof it would reject the site (include_unknown=true keeps brands with no recorded value for a criterion). For a full vacant-unit shortlist that separates published (stated) requirements from where brands actually operate (revealed) and reports coverage, prefer crehq_site_selector_match.",
+    schema: {
+      sqft: z.number().int().positive().optional().describe("Size of the unit in square feet."),
+      site_type: z.string().trim().min(1).optional().describe("Site type of the unit, e.g. 'endcap' or 'freestanding'."),
+      aadt: nonNegativeInt.optional().describe("Annual average daily traffic (vehicles/day) at the site."),
+      population: nonNegativeInt.optional().describe("Population within radius_miles of the site."),
+      hhi: nonNegativeInt.optional().describe("Household income (USD) within radius_miles of the site."),
+      radius_miles: z.number().positive().optional().describe("Radius in miles for the population/income values."),
+      cotenants: z.string().trim().min(1).optional().describe("Comma-separated CREHQ brand slugs of existing co-tenants."),
+      category: z.string().trim().min(1).optional().describe("Optional brand category filter."),
+      state: usStateCode.optional().describe("2-letter US state of the site."),
+      limit: z.number().int().min(1).optional().describe("Maximum number of brands to return."),
+      include_unknown: z
+        .boolean()
+        .optional()
+        .describe("When true, keep brands with no recorded value for a criterion instead of excluding them."),
+      require_envelope_fit: z
+        .boolean()
+        .optional()
+        .describe("When true, require the site to fit within each brand's recorded requirement envelope (stricter; fewer results)."),
+    },
+    handler: (c, a) =>
+      call(() =>
+        c.request("/selfserve/brands-matching-site", {
+          query: {
+            sqft: a.sqft as number,
+            site_type: commaList(a.site_type),
+            aadt: a.aadt as number,
+            population: a.population as number,
+            hhi: a.hhi as number,
+            radius_miles: a.radius_miles as number,
+            cotenants: commaList(a.cotenants),
+            category: a.category as string,
+            state: upperState(a.state),
+            limit: a.limit as number,
+            include_unknown: a.include_unknown as boolean,
+            require_envelope_fit: a.require_envelope_fit as boolean,
+          },
+        }),
+      ),
+  },
+  {
+    name: "crehq_company_site_requirements",
+    requiredScope: SCOPE_BASIC,
+    description:
+      "Get one brand's PUBLISHED site-selection criteria as CREHQ has recorded them: unit size, site types, lease terms, traffic, population, household income, and co-tenancy text, each with its source. These are what the brand states it wants, not a measurement of where it operates. Published criteria are often partial, dated, or absent; a missing field means CREHQ has no published value, not that the brand has no requirement. Check the sources before quoting a requirement as current.",
+    schema: {
+      company: z
+        .union([z.string().trim().min(1).max(200), z.number().int().positive()])
+        .describe("CREHQ brand slug (e.g. 'planet-fitness') or numeric company id."),
+    },
+    handler: (c, a) =>
+      call(() => c.request("/selfserve/company-requirements", { query: { company: String(a.company) } })),
   },
 
   // ========================================================================

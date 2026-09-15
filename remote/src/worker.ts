@@ -6,13 +6,16 @@
  *   - ISSUER (var)             : public origin, e.g. https://mcp.crehq.com
  *   - CREHQ_API_BASE (var)     : defaults to https://crehq.com/wp-json/crehq/v1
  *   - CREHQ_TIMEOUT_MS (var)   : optional per-request timeout.
+ *   - CREHQ_SITE_ORIGIN (var)  : CREHQ WordPress origin for /mcp-connect/ (default https://crehq.com)
+ *   - CREHQ_CONNECT_SECRET (secret, optional): HMAC secret for "Sign in with CREHQ".
+ *                                Unset/empty = sign-in hidden, API-key paste only.
  *
  * The Worker derives the issuer from the request origin if ISSUER is unset, so
  * `wrangler dev` works out of the box (issuer = http://localhost:8787).
  */
 import { handleRequest } from "./router.js";
 import { KvStore, type KVLike } from "./storage.js";
-import { DEFAULT_API_BASE } from "./client.js";
+import { DEFAULT_API_BASE, DEFAULT_SITE_ORIGIN } from "./client.js";
 
 type WorkerEnv = Env & {
   OAUTH_KV: KVLike;
@@ -35,6 +38,8 @@ export default {
         issuer,
         crehqApiBase: (env.CREHQ_API_BASE ?? DEFAULT_API_BASE).replace(/\/+$/, ""),
         timeoutMs: Number.parseInt(env.CREHQ_TIMEOUT_MS ?? "30000", 10) || 30000,
+        crehqSiteOrigin: (env.CREHQ_SITE_ORIGIN || DEFAULT_SITE_ORIGIN).replace(/\/+$/, ""),
+        crehqConnectSecret: env.CREHQ_CONNECT_SECRET ?? "",
         unsafeSkipKeyValidation: env.UNSAFE_SKIP_KEY_VALIDATION === "yes-i-know",
       });
       console.log(

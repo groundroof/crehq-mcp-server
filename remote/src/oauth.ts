@@ -11,23 +11,30 @@
  *
  * KEY BRIDGING (the CREHQ part):
  *   The connector must ultimately call the CREHQ REST API with a
- *   `crehq_live_<key>`. After the user authenticates they reach the consent
- *   screen and LINK their CREHQ API key (pasted, or — in production — issued by
- *   "Sign in with CREHQ"). We validate that key against the live API, derive
- *   the granted scopes from it, and store the {access_token -> {key, scopes}}
- *   mapping. Tools then run with that user's own key + entitlements.
+ *   `crehq_live_<key>`. The consent screen links a key to the pending
+ *   authorization in one of two ways, which share ONE code path
+ *   (`bindKeyToPending`):
+ *     1. "Sign in with CREHQ" (primary): the user signs in on the CREHQ
+ *        WordPress site (/mcp-connect/), approves, and is redirected back to
+ *        /authorize/crehq-callback with a one-time grant. This server exchanges
+ *        the grant for a key via an HMAC-signed server-to-server POST to
+ *        `${CREHQ_API_BASE}/selfserve/mcp-connect/exchange`. Disabled (button hidden) when
+ *        CREHQ_CONNECT_SECRET is empty.
+ *     2. Paste an API key (secondary): validated against the live API.
+ *   Either way we derive the granted scopes, mint a single-use auth code bound
+ *   to the pending PKCE data, and store {access_token -> {key, scopes}}. Tools
+ *   then run with that user's own key + entitlements.
  *
- *   PRODUCTION BRIDGE (documented, not built here): replace the paste step with
- *   an OIDC/login redirect to CREHQ's WordPress that, on success, looks up or
- *   mints a scoped key in `xcrehqy_crehq_api_keys` (via `POST /selfserve/signup`
- *   or `POST /api-keys`) and returns it to this AS. The key's `permissions.scopes`
- *   JSON already drives tier gating server-side. See DEPLOY.md.
+ *   /mcp also accepts a raw `crehq_live_` key as the bearer (coding tools that
+ *   cannot run OAuth). It is validated with the same probe and the result is
+ *   cached for 5 minutes under sha256(key) — never under the plaintext key.
  *
  * SECURITY: tokens are opaque random strings; only their records (in the Store)
  * hold the CREHQ key. Auth codes are single-use and short-lived. PKCE is
  * mandatory. Secrets/keys are never logged. Redirect URIs are exact-matched.
  */
 import {
+  hmacSha256Hex,
   randomToken,
   sha256Hex,
   verifyPkce,
@@ -35,13 +42,25 @@ import {
 } from "./crypto.js";
 import type { Store } from "./storage.js";
 import { ALL_SCOPES, SCOPE_BASIC } from "./tools.js";
-import { CrehqClient } from "./client.js";
+import { CrehqClient, DEFAULT_SITE_ORIGIN } from "./client.js";
 
 // --- TTLs --------------------------------------------------------------------
 const AUTH_CODE_TTL = 300; // 5 min (OAuth 2.1 recommends <= 10 min)
 const ACCESS_TOKEN_TTL = 3600; // 1 hour
 const REFRESH_TOKEN_TTL = 60 * 60 * 24 * 30; // 30 days
-const PENDING_AUTH_TTL = 600; // consent-screen session
+/** Consent-screen session. The crehq_mcp_pending cookie Max-Age matches this. */
+export const PENDING_AUTH_TTL = 600;
+/** How long a successful raw-API-key validation is trusted before re-probing. */
+const RAW_KEY_CACHE_TTL = 300;
+
+/** Prefix that marks a bearer token as a raw CREHQ API key rather than an OAuth token. */
+const RAW_KEY_PREFIX = "crehq_live_";
+/** Upper bound on a sign-in grant we will sign and forward. */
+const MAX_GRANT_LENGTH = 512;
+
+const SESSION_EXPIRED_MESSAGE = "Your authorization session expired. Please restart the connection from your AI app.";
+
+export type ApiSurface = "selfserve" | "full";
 
 // --- stored record shapes ----------------------------------------------------
 export interface ClientRecord {
@@ -66,15 +85,41 @@ interface PendingAuth {
 interface AuthCodeRecord extends PendingAuth {
   crehqApiKey: string;
   grantedScopes: string[];
-  apiSurface: "selfserve" | "full";
+  apiSurface: ApiSurface;
 }
 
 interface TokenRecord {
   crehqApiKey: string;
   scopes: string[];
   client_id: string;
-  apiSurface: "selfserve" | "full";
+  apiSurface: ApiSurface;
 }
+
+/** Cached raw-key validation. Deliberately holds NO key material. */
+interface RawKeyRecord {
+  scopes: string[];
+  apiSurface: ApiSurface;
+}
+
+export interface ResolvedBearer {
+  crehqApiKey: string;
+  scopes: string[];
+  apiSurface: ApiSurface;
+}
+
+/** A CREHQ key plus what it may do, ready to bind to a pending authorization. */
+interface LinkedKey {
+  crehqApiKey: string;
+  allowedScopes: string[];
+  apiSurface: ApiSurface;
+}
+
+type Failure = { ok: false; status: number; message: string };
+
+/** Outcome of finishing (or refusing) a pending authorization. */
+export type AuthorizationResult =
+  | { ok: true; redirect: string }
+  | (Failure & { /** true when the pending authorization no longer exists. */ expired?: boolean });
 
 // --- config ------------------------------------------------------------------
 export interface OAuthConfig {
@@ -82,8 +127,15 @@ export interface OAuthConfig {
   issuer: string;
   /** CREHQ REST API base. */
   crehqApiBase: string;
-  /** Per-request timeout for the key-validation probe. */
+  /** Per-request timeout for the key-validation probe and the grant exchange. */
   timeoutMs: number;
+  /** CREHQ WordPress origin hosting /mcp-connect/ (default https://crehq.com). */
+  crehqSiteOrigin?: string;
+  /**
+   * Shared HMAC-SHA256 secret for the "Sign in with CREHQ" grant exchange.
+   * Empty/unset disables sign-in: the button is hidden and the callback refuses.
+   */
+  crehqConnectSecret?: string;
   /**
    * TEST-ONLY: skip the live CREHQ key-validation probe during consent and
    * trust the pasted key as-is, granting the requested scopes. This exists so
@@ -91,7 +143,7 @@ export interface OAuthConfig {
    * real sandbox key. It is OFF by default and must NEVER be enabled in
    * production (the Worker entry never sets it). When on, the tool call still
    * proxies to the LIVE CREHQ API, so an invalid key yields a real 401 — which
-   * is exactly the wiring proof we want.
+   * is exactly the wiring proof we want. It does NOT affect raw-key bearers.
    */
   unsafeSkipKeyValidation?: boolean;
 }
@@ -103,6 +155,7 @@ const P = {
   code: (hash: string) => `oauth:code:${hash}`,
   access: (hash: string) => `oauth:at:${hash}`,
   refresh: (hash: string) => `oauth:rt:${hash}`,
+  rawKey: (hash: string) => `apikey:validated:${hash}`,
 };
 
 export class OAuthServer {
@@ -252,36 +305,107 @@ export class OAuthServer {
     return { ok: true, pendingId, clientName: client.client_name ?? client_id, scopes };
   }
 
-  /**
-   * Complete the consent step: the user supplied a CREHQ API key. Validate it
-   * against the live CREHQ API, derive granted scopes, mint an auth code, and
-   * return the redirect URL (back to the client with ?code=&state=).
-   */
-  async completeConsent(
-    pendingId: string,
-    crehqApiKey: string,
-  ): Promise<{ ok: true; redirect: string } | { ok: false; message: string }> {
-    const pending = await this.store.getJSON<PendingAuth>(P.pending(pendingId));
-    if (!pending) {
-      return { ok: false, message: "Your authorization session expired. Please restart the connection." };
-    }
-    const key = (crehqApiKey ?? "").trim();
-    if (!key) {
-      return { ok: false, message: "A CREHQ API key is required to authorize." };
-    }
+  /** Re-derive the consent-screen context for a still-pending authorization (null if gone). */
+  async consentContext(pendingId: string): Promise<{ pendingId: string; clientName: string; scopes: string[] } | null> {
+    const pending = await this.loadPending(pendingId);
+    if (!pending) return null;
+    const client = await this.store.getJSON<ClientRecord>(P.client(pending.client_id));
+    return {
+      pendingId,
+      clientName: client?.client_name ?? pending.client_id,
+      scopes: pending.scope.split(" ").filter(Boolean),
+    };
+  }
 
-    // Validate the key against the LIVE CREHQ API (and derive entitlements).
-    // TEST-ONLY bypass: trust the key and grant the requested scopes.
-    const validation = this.cfg.unsafeSkipKeyValidation
-      ? { valid: true as const, scopes: pending.scope.split(" ").filter(Boolean), apiSurface: "full" as const }
-      : await this.validateCrehqKey(key);
-    if (!validation.valid) {
-      return { ok: false, message: validation.message };
-    }
+  /**
+   * The CREHQ-hosted approval URL for a pending authorization, or null when
+   * sign-in is disabled (no CREHQ_CONNECT_SECRET) so the page falls back to paste.
+   */
+  signInUrl(pendingId: string, clientName: string): string | null {
+    if (!this.connectSecret()) return null;
+    const origin = (this.cfg.crehqSiteOrigin || DEFAULT_SITE_ORIGIN).replace(/\/+$/, "");
+    return `${origin}/mcp-connect/?pending=${encodeURIComponent(pendingId)}&client=${encodeURIComponent(clientName)}`;
+  }
+
+  /**
+   * Paste path: the user supplied a CREHQ API key. Validate it against the live
+   * CREHQ API, derive granted scopes, and finish via the shared bind path.
+   */
+  async completeConsent(pendingId: string, crehqApiKey: string): Promise<AuthorizationResult> {
+    return this.bindKeyToPending(pendingId, async (pending) => {
+      const key = (crehqApiKey ?? "").trim();
+      if (!key) {
+        return { ok: false, status: 400, message: "A CREHQ API key is required to authorize." };
+      }
+      // TEST-ONLY bypass: trust the key and grant the requested scopes.
+      const validation = this.cfg.unsafeSkipKeyValidation
+        ? { valid: true as const, scopes: pending.scope.split(" ").filter(Boolean), apiSurface: "full" as const }
+        : await this.validateCrehqKey(key);
+      if (!validation.valid) {
+        return { ok: false, status: 400, message: validation.message };
+      }
+      return { ok: true, linked: { crehqApiKey: key, allowedScopes: validation.scopes, apiSurface: validation.apiSurface } };
+    });
+  }
+
+  /**
+   * Sign-in path: CREHQ WordPress redirected back with a one-time grant.
+   * Exchange it (HMAC-signed) for a key, then finish via the shared bind path.
+   */
+  async completeCrehqSignIn(pendingId: string, grant: string): Promise<AuthorizationResult> {
+    return this.bindKeyToPending(pendingId, async () => {
+      const secret = this.connectSecret();
+      if (!secret) {
+        return {
+          ok: false,
+          status: 503,
+          message: "Sign in with CREHQ is not enabled on this server. Go back and use an API key instead.",
+        };
+      }
+      if (!grant || grant.length > MAX_GRANT_LENGTH) {
+        return {
+          ok: false,
+          status: 400,
+          message: "The CREHQ sign-in response was incomplete. Please restart the connection from your AI app.",
+        };
+      }
+      const exchanged = await this.exchangeConnectGrant(secret, grant, pendingId);
+      if (!exchanged.ok) return exchanged;
+      const allowedScopes =
+        exchanged.apiSurface === "selfserve" ? [SCOPE_BASIC] : await this.fullSurfaceScopes(this.keyClient(exchanged.key));
+      return { ok: true, linked: { crehqApiKey: exchanged.key, allowedScopes, apiSurface: exchanged.apiSurface } };
+    });
+  }
+
+  /** The user cancelled at CREHQ: consume the pending auth and send access_denied to the client. */
+  async denyAuthorization(pendingId: string): Promise<AuthorizationResult> {
+    const pending = await this.loadPending(pendingId);
+    if (!pending) return { ok: false, status: 400, message: SESSION_EXPIRED_MESSAGE, expired: true };
+    await this.store.del(P.pending(pendingId));
+    return { ok: true, redirect: this.errRedirect(pending.redirect_uri, pending.state, "access_denied") };
+  }
+
+  /**
+   * THE shared completion path for paste and sign-in: load the pending auth,
+   * resolve a key for it, intersect scopes, consume the pending record, mint a
+   * single-use code bound to the pending PKCE data, and build the redirect.
+   * The pending record is only consumed on success, so a failed key check or
+   * exchange leaves the consent screen usable.
+   */
+  private async bindKeyToPending(
+    pendingId: string,
+    resolveKey: (pending: PendingAuth) => Promise<{ ok: true; linked: LinkedKey } | Failure>,
+  ): Promise<AuthorizationResult> {
+    const pending = await this.loadPending(pendingId);
+    if (!pending) return { ok: false, status: 400, message: SESSION_EXPIRED_MESSAGE, expired: true };
+
+    const resolved = await resolveKey(pending);
+    if (!resolved.ok) return resolved;
+    const { crehqApiKey, allowedScopes, apiSurface } = resolved.linked;
 
     // Granted scopes = intersection of requested scopes and what the key allows.
     const requested = pending.scope.split(" ").filter(Boolean);
-    const grantedScopes = requested.filter((s) => validation.scopes.includes(s));
+    const grantedScopes = requested.filter((s) => allowedScopes.includes(s));
     if (grantedScopes.length === 0) {
       // Always grant basic if the key is valid at all (every key can read).
       grantedScopes.push(SCOPE_BASIC);
@@ -290,13 +414,85 @@ export class OAuthServer {
     await this.store.del(P.pending(pendingId));
 
     const code = randomToken(32);
-    const codeRec: AuthCodeRecord = { ...pending, crehqApiKey: key, grantedScopes, apiSurface: validation.apiSurface };
+    const codeRec: AuthCodeRecord = { ...pending, crehqApiKey, grantedScopes, apiSurface };
     await this.store.putJSON(P.code(await sha256Hex(code)), codeRec, AUTH_CODE_TTL);
 
     const url = new URL(pending.redirect_uri);
     url.searchParams.set("code", code);
     if (pending.state) url.searchParams.set("state", pending.state);
     return { ok: true, redirect: url.toString() };
+  }
+
+  /**
+   * POST {"grant","pending"} to `${CREHQ_API_BASE}/selfserve/mcp-connect/exchange`, signed
+   * with X-CREHQ-Connect-Timestamp + X-CREHQ-Connect-Signature =
+   * hex(HMAC-SHA256(secret, `${ts}.${grant}.${pending}`)). Only HTTP 200 with a
+   * `crehq_live_` key is success; anything else becomes a user-facing message
+   * with secrets and key-like strings redacted.
+   */
+  private async exchangeConnectGrant(
+    secret: string,
+    grant: string,
+    pending: string,
+  ): Promise<{ ok: true; key: string; apiSurface: ApiSurface } | Failure> {
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    const signature = await hmacSha256Hex(secret, `${timestamp}.${grant}.${pending}`);
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.cfg.timeoutMs);
+    let res: Response;
+    let body: unknown = null;
+    try {
+      res = await fetch(`${this.cfg.crehqApiBase}/selfserve/mcp-connect/exchange`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "User-Agent": "crehq-mcp-remote/0.1.1",
+          "X-CREHQ-Connect-Timestamp": timestamp,
+          "X-CREHQ-Connect-Signature": signature,
+        },
+        body: JSON.stringify({ grant, pending }),
+        // Never re-POST the grant to wherever a redirect points.
+        redirect: "manual",
+        signal: controller.signal,
+      });
+      const text = await res.text();
+      try {
+        body = text ? JSON.parse(text) : null;
+      } catch {
+        body = null;
+      }
+    } catch {
+      return {
+        ok: false,
+        status: 502,
+        message: "CREHQ could not be reached to finish sign-in. Please restart the connection from your AI app.",
+      };
+    } finally {
+      clearTimeout(timer);
+    }
+
+    if (res.status !== 200) {
+      const message =
+        safeExchangeMessage(body, [secret, grant]) ??
+        `CREHQ did not approve this connection (HTTP ${res.status}). Please restart the connection from your AI app.`;
+      const status = res.status === 401 || res.status === 403 ? 403 : res.status >= 400 && res.status < 500 ? 400 : 502;
+      return { ok: false, status, message };
+    }
+
+    const rec = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+    const key = typeof rec.key === "string" ? rec.key.trim() : "";
+    if (!key.startsWith(RAW_KEY_PREFIX) || key.length <= RAW_KEY_PREFIX.length) {
+      return {
+        ok: false,
+        status: 502,
+        message: "CREHQ returned an unexpected sign-in response. Please restart the connection from your AI app.",
+      };
+    }
+    // Least privilege: anything other than an explicit "full" is the bounded surface.
+    const apiSurface: ApiSurface = rec.api_surface === "full" ? "full" : "selfserve";
+    return { ok: true, key, apiSurface };
   }
 
   // === Token endpoint (POST /token) ==========================================
@@ -368,7 +564,7 @@ export class OAuthServer {
     client_id: string,
     crehqApiKey: string,
     scopes: string[],
-    apiSurface: "selfserve" | "full",
+    apiSurface: ApiSurface,
   ): Promise<{ status: number; json: unknown }> {
     const accessToken = randomToken(32);
     const refreshToken = randomToken(32);
@@ -387,17 +583,54 @@ export class OAuthServer {
     };
   }
 
-  // === Bearer-token introspection (used by the /mcp handler) =================
+  // === Bearer resolution (used by the /mcp handler) ==========================
 
   /** Resolve a bearer access token into its {key, scopes}. null if invalid. */
-  async resolveAccessToken(token: string): Promise<{ crehqApiKey: string; scopes: string[]; apiSurface: "selfserve" | "full" } | null> {
+  async resolveAccessToken(token: string): Promise<ResolvedBearer | null> {
     if (!token) return null;
     const rec = await this.store.getJSON<TokenRecord>(P.access(await sha256Hex(token)));
     if (!rec) return null;
     return { crehqApiKey: rec.crehqApiKey, scopes: rec.scopes, apiSurface: rec.apiSurface ?? "full" };
   }
 
+  /**
+   * Resolve any /mcp bearer: an OAuth access token first; otherwise, if it looks
+   * like a raw CREHQ API key, validate it (cached 300 s under sha256(key)).
+   */
+  async resolveBearer(token: string): Promise<ResolvedBearer | null> {
+    const oauthToken = await this.resolveAccessToken(token);
+    if (oauthToken) return oauthToken;
+    return this.resolveRawApiKey(token);
+  }
+
+  private async resolveRawApiKey(token: string): Promise<ResolvedBearer | null> {
+    if (!token.startsWith(RAW_KEY_PREFIX) || token.length <= RAW_KEY_PREFIX.length || token.length > 256) return null;
+    const cacheKey = P.rawKey(await sha256Hex(token));
+    const cached = await this.store.getJSON<RawKeyRecord>(cacheKey);
+    if (cached) return { crehqApiKey: token, scopes: cached.scopes, apiSurface: cached.apiSurface };
+
+    const validation = await this.validateCrehqKey(token);
+    if (!validation.valid) return null;
+    const record: RawKeyRecord = { scopes: validation.scopes, apiSurface: validation.apiSurface };
+    await this.store.putJSON(cacheKey, record, RAW_KEY_CACHE_TTL);
+    return { crehqApiKey: token, scopes: validation.scopes, apiSurface: validation.apiSurface };
+  }
+
   // === helpers ===============================================================
+
+  private connectSecret(): string {
+    const secret = this.cfg.crehqConnectSecret ?? "";
+    return secret.trim() ? secret : "";
+  }
+
+  private async loadPending(pendingId: string): Promise<PendingAuth | null> {
+    if (!pendingId) return null;
+    return this.store.getJSON<PendingAuth>(P.pending(pendingId));
+  }
+
+  private keyClient(key: string): CrehqClient {
+    return new CrehqClient({ apiKey: key, apiBase: this.cfg.crehqApiBase, timeoutMs: this.cfg.timeoutMs });
+  }
 
   private async authenticateClient(
     params: URLSearchParams,
@@ -457,14 +690,7 @@ export class OAuthServer {
    *      key is active and grants the basic MCP scope only.
    *   2. Fall back to the broader API probe for paid/admin keys that are not
    *      provisioned for the self-serve surface.
-   *
-   * Full-API heuristic for scope derivation:
-   *   - A key that authorizes a basic read (200/404 on /companies/search) gets
-   *     read:locations.
-   *   - We then probe premium endpoints. Whitespace covers legacy intelligence
-   *     packs; credit-signals covers the newer credit-intel pack. If either
-   *     probe does NOT return 401/403, the key has premium intelligence access
-   *     -> add read:intelligence. 401/403 on both means basic-only.
+   *   3. `fullSurfaceScopes()` detects the intelligence tier for full keys.
    *
    * PRODUCTION: replace this probe with reading the key's `permissions.scopes`
    * from `xcrehqy_crehq_api_keys` (server already enforces scopes), exposed via
@@ -474,10 +700,10 @@ export class OAuthServer {
   private async validateCrehqKey(
     key: string,
   ): Promise<
-    | { valid: true; scopes: string[]; apiSurface: "selfserve" | "full" }
+    | { valid: true; scopes: string[]; apiSurface: ApiSurface }
     | { valid: false; message: string }
   > {
-    const client = new CrehqClient({ apiKey: key, apiBase: this.cfg.crehqApiBase, timeoutMs: this.cfg.timeoutMs });
+    const client = this.keyClient(key);
 
     // Step 1: sandbox/self-serve keys. These are valid CREHQ keys but are not
     // accepted by the broader enterprise API namespace.
@@ -508,10 +734,18 @@ export class OAuthServer {
       }
       // Other statuses (e.g. 404/429/5xx) still prove the key authenticated.
     }
-    const scopes: string[] = [SCOPE_BASIC];
+    return { valid: true, scopes: await this.fullSurfaceScopes(client), apiSurface: "full" };
+  }
 
-    // Step 3: detect the intelligence tier. One read:intelligence MCP scope
-    // fronts multiple CREHQ pack scopes; accept any premium probe that passes.
+  /**
+   * Scopes for a key already known to use the full API surface.
+   *   - Every such key gets read:locations.
+   *   - Whitespace covers legacy intelligence packs; credit-signals covers the
+   *     newer credit-intel pack. If either probe does NOT return 401/403, the
+   *     key has premium intelligence access -> add read:intelligence.
+   */
+  private async fullSurfaceScopes(client: CrehqClient): Promise<string[]> {
+    const scopes: string[] = [SCOPE_BASIC];
     let hasIntelligence = false;
     try {
       await client.request("/intelligence/whitespace", { query: { company_id: "1", country: "US" } });
@@ -535,6 +769,23 @@ export class OAuthServer {
       }
     }
     if (hasIntelligence) scopes.push("read:intelligence");
-    return { valid: true, scopes: Array.from(new Set(scopes)), apiSurface: "full" };
+    return Array.from(new Set(scopes));
   }
+}
+
+/**
+ * The exchange endpoint's `message`, made safe to show a user: single-line,
+ * capped, with the connect secret / grant and any CREHQ-key-shaped string
+ * redacted. HTML escaping happens in the page renderer.
+ */
+function safeExchangeMessage(body: unknown, secrets: string[]): string | null {
+  const raw = body && typeof body === "object" ? (body as { message?: unknown }).message : undefined;
+  if (typeof raw !== "string") return null;
+  let message = raw.replace(/\s+/g, " ").trim();
+  for (const secret of secrets) {
+    if (secret && secret.length >= 8) message = message.split(secret).join("[redacted]");
+  }
+  message = message.replace(/crehq_(?:live|test)_[A-Za-z0-9_-]+/g, "[redacted]");
+  if (message.length > 300) message = `${message.slice(0, 297)}...`;
+  return message || null;
 }

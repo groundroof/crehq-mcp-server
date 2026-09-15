@@ -97,7 +97,7 @@ globalThis.fetch = async (input: RequestInfo | URL, init: RequestInit = {}): Pro
   const route = url.pathname.slice(new URL(API_BASE).pathname.length);
   const key = call.headers.get("x-api-key") ?? "";
 
-  if (route === "/mcp-connect/exchange") return exchangeReply(call);
+  if (route === "/selfserve/mcp-connect/exchange") return exchangeReply(call);
   if (route === "/selfserve/usage") {
     return key === RAW_SELFSERVE_KEY || key === ISSUED_KEY
       ? jsonResponse(200, { calls_used: 3, monthly_quota: 1000 })
@@ -168,7 +168,7 @@ function callback(app: App, params: Record<string, string>, cookie?: string): Pr
   return app.req(`/authorize/crehq-callback?${new URLSearchParams(params).toString()}`, { headers });
 }
 
-const exchangeCount = (): number => upstream.filter((c) => c.url.pathname.endsWith("/mcp-connect/exchange")).length;
+const exchangeCount = (): number => upstream.filter((c) => c.url.pathname.endsWith("/selfserve/mcp-connect/exchange")).length;
 const isClearedCookie = (res: Response): boolean => {
   const sc = res.headers.get("set-cookie") ?? "";
   return sc.startsWith("crehq_mcp_pending=;") && sc.includes("Max-Age=0") && sc.includes("Path=/authorize");
@@ -267,11 +267,11 @@ async function testSignInHappyPathAndReplay(): Promise<void> {
   check("sign-in: code + original state returned", code.length > 0 && back.searchParams.get("state") === a.state);
   check("sign-in: pending cookie cleared", isClearedCookie(res));
 
-  const exchanges = upstream.slice(before).filter((c) => c.url.pathname.endsWith("/mcp-connect/exchange"));
+  const exchanges = upstream.slice(before).filter((c) => c.url.pathname.endsWith("/selfserve/mcp-connect/exchange"));
   const ex = exchanges[0];
   check(
-    "exchange: exactly one POST to CREHQ_API_BASE/mcp-connect/exchange",
-    exchanges.length === 1 && ex?.method === "POST" && ex.url.href === `${API_BASE}/mcp-connect/exchange`,
+    "exchange: exactly one POST to CREHQ_API_BASE/selfserve/mcp-connect/exchange",
+    exchanges.length === 1 && ex?.method === "POST" && ex.url.href === `${API_BASE}/selfserve/mcp-connect/exchange`,
   );
   const ts = ex?.headers.get("x-crehq-connect-timestamp") ?? "";
   const sig = ex?.headers.get("x-crehq-connect-signature") ?? "";

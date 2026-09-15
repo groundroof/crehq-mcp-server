@@ -59,7 +59,7 @@ jobs:
             echo "CREHQ_CONNECT_SECRET GitHub secret is empty; skipping (Sign in with CREHQ stays hidden)."
             exit 0
           fi
-          echo "$CREHQ_CONNECT_SECRET" | npx wrangler secret put CREHQ_CONNECT_SECRET
+          printf '%s' "$CREHQ_CONNECT_SECRET" | npx wrangler secret put CREHQ_CONNECT_SECRET
         env:
           CREHQ_CONNECT_SECRET: ${{ secrets.CREHQ_CONNECT_SECRET }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

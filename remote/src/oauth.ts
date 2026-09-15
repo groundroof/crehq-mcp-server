@@ -18,7 +18,7 @@
  *        WordPress site (/mcp-connect/), approves, and is redirected back to
  *        /authorize/crehq-callback with a one-time grant. This server exchanges
  *        the grant for a key via an HMAC-signed server-to-server POST to
- *        `${CREHQ_API_BASE}/mcp-connect/exchange`. Disabled (button hidden) when
+ *        `${CREHQ_API_BASE}/selfserve/mcp-connect/exchange`. Disabled (button hidden) when
  *        CREHQ_CONNECT_SECRET is empty.
  *     2. Paste an API key (secondary): validated against the live API.
  *   Either way we derive the granted scopes, mint a single-use auth code bound
@@ -424,7 +424,7 @@ export class OAuthServer {
   }
 
   /**
-   * POST {"grant","pending"} to `${CREHQ_API_BASE}/mcp-connect/exchange`, signed
+   * POST {"grant","pending"} to `${CREHQ_API_BASE}/selfserve/mcp-connect/exchange`, signed
    * with X-CREHQ-Connect-Timestamp + X-CREHQ-Connect-Signature =
    * hex(HMAC-SHA256(secret, `${ts}.${grant}.${pending}`)). Only HTTP 200 with a
    * `crehq_live_` key is success; anything else becomes a user-facing message
@@ -443,7 +443,7 @@ export class OAuthServer {
     let res: Response;
     let body: unknown = null;
     try {
-      res = await fetch(`${this.cfg.crehqApiBase}/mcp-connect/exchange`, {
+      res = await fetch(`${this.cfg.crehqApiBase}/selfserve/mcp-connect/exchange`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -149,7 +149,7 @@ the `WWW-Authenticate` / protected-resource metadata and runs the rest.
    `https://mcp.crehq.com/authorize/crehq-callback?pending=<pendingId>&grant=<grant>`
    (or `&error=access_denied` on cancel, which is relayed to the client as `error=access_denied`).
 3. The callback requires the cookie to equal `pending`, then POSTs `{"grant":"…","pending":"…"}` to
-   `${CREHQ_API_BASE}/mcp-connect/exchange` with `X-CREHQ-Connect-Timestamp: <unix seconds>` and
+   `${CREHQ_API_BASE}/selfserve/mcp-connect/exchange` with `X-CREHQ-Connect-Timestamp: <unix seconds>` and
    `X-CREHQ-Connect-Signature: hex(HMAC-SHA256(CREHQ_CONNECT_SECRET, ts + "." + grant + "." + pending))`.
 4. HTTP 200 `{"key":"crehq_live_…","api_surface":"selfserve"|"full",…}` finishes through the same code
    path as paste. Any other status shows a message page with the returned `message` (key-like strings

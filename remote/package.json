@@ -16,7 +16,7 @@
     "dev": "npm run build && node dist/dev-server.js",
     "dev:wrangler": "wrangler dev",
     "deploy": "wrangler deploy",
-    "test:oauth": "npm run build && node dist/test/oauth-flow.test.js"
+    "test:oauth": "npm run build && node dist/test/oauth-flow.test.js && node dist/test/connect-flow.test.js"
   },
   "dependencies": {
     "zod": "^3.23.8"

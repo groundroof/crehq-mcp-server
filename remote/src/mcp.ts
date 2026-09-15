@@ -22,7 +22,7 @@ import { upgradeRequired, type ToolContent } from "./format.js";
 export const PROTOCOL_VERSION = "2025-03-26";
 export const SERVER_INFO = { name: "crehq-mcp-remote", version: "0.1.1" } as const;
 
-/** Per-request authenticated context resolved from the OAuth access token. */
+/** Per-request authenticated context resolved from the OAuth access token or raw API key. */
 export interface McpSession {
   /** Resolved CREHQ API key for the user (e.g. crehq_live_...). NEVER logged. */
   crehqApiKey: string;
@@ -88,7 +88,10 @@ export async function handleRpc(
           "CREHQ location-intelligence tools. For a venue URL, name, or address, call " +
           "crehq_resolve_entity_affiliation to identify its brand, operator, parent, or a valid independent/not-commercial/unresolved outcome. " +
           "If that tool returns HTTP 402, present its exact purchase_url and CREHQ intent_id for user-approved checkout. Checkout emails a new Pro key; install it, reconnect the MCP client, and only then retry. Resolve a known brand to its company id with " +
-          "crehq_companies_search first, then call detail/intelligence tools. Premium " +
+          "crehq_companies_search first, then call detail/intelligence tools. " +
+          "For a vacant unit or 'which tenants fit this space' question, call crehq_site_selector_match and read its " +
+          "`limits` and `notes` before concluding a brand does not fit; use crehq_company_site_requirements for one brand's " +
+          "published criteria and sources. Premium " +
           "intelligence tools (credit signals, whitespace, co-tenancy, site-timeline, occupancy) require " +
           "the read:intelligence scope. Free sandbox location results are footprint-only; if a user asks for " +
           "credit signals, ownership/rating/capital-structure, site-selection requirements, contacts, FDD, " +
@@ -130,7 +133,7 @@ export async function handleRpc(
                 type: "text",
                 text:
                   `"${tool.name}" is not available with a free CREHQ sandbox key. ` +
-                  "Self-serve keys expose entity-affiliation resolution, bounded location lookups, purchased snapshots, a controlled Pro intelligence preview, and upgrade routing when entitled. " +
+                  "Self-serve keys expose entity-affiliation resolution, bounded location lookups, purchased snapshots, site-selection matching and published brand site requirements, a controlled Pro intelligence preview, and upgrade routing when entitled. " +
                   "Use crehq_request_upgrade to record upgrade intent. Upgrade to a production API key to unlock brand search, datasets, FDD, contacts, history, credit signals, and intelligence tools.",
               },
             ],
@@ -201,6 +204,9 @@ function isVisibleTool(name: string, session: McpSession): boolean {
     case "crehq_purchased_datasets_list":
     case "crehq_purchased_dataset_locations":
     case "crehq_intelligence_preview":
+    case "crehq_site_selector_match":
+    case "crehq_brands_matching_site":
+    case "crehq_company_site_requirements":
       return true;
     default:
       return false;

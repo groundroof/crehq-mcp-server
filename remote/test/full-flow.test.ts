@@ -107,6 +107,9 @@ async function run(scopeRequest: string, label: string): Promise<void> {
     "crehq_purchased_datasets_list",
     "crehq_purchased_dataset_locations",
     "crehq_intelligence_preview",
+    "crehq_site_selector_match",
+    "crehq_brands_matching_site",
+    "crehq_company_site_requirements",
   ];
   const selfserveCatalog =
     names.length === selfserveTools.length && selfserveTools.every((toolName) => names.includes(toolName));

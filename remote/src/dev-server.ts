@@ -7,17 +7,20 @@
  * without Cloudflare credentials.
  *
  * Run:  npm run dev          (PORT defaults to 8787)
- * Env:  ISSUER, CREHQ_API_BASE, CREHQ_TIMEOUT_MS (all optional).
+ * Env:  ISSUER, CREHQ_API_BASE, CREHQ_TIMEOUT_MS, CREHQ_SITE_ORIGIN,
+ *       CREHQ_CONNECT_SECRET (all optional; no secret = paste-only consent).
  */
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { handleRequest } from "./router.js";
 import { MemoryStore } from "./storage.js";
-import { DEFAULT_API_BASE } from "./client.js";
+import { DEFAULT_API_BASE, DEFAULT_SITE_ORIGIN } from "./client.js";
 
 const PORT = Number.parseInt(process.env.PORT ?? "8787", 10);
 const store = new MemoryStore();
 const crehqApiBase = (process.env.CREHQ_API_BASE ?? DEFAULT_API_BASE).replace(/\/+$/, "");
 const timeoutMs = Number.parseInt(process.env.CREHQ_TIMEOUT_MS ?? "30000", 10) || 30000;
+const crehqSiteOrigin = (process.env.CREHQ_SITE_ORIGIN || DEFAULT_SITE_ORIGIN).replace(/\/+$/, "");
+const crehqConnectSecret = process.env.CREHQ_CONNECT_SECRET ?? "";
 
 async function toFetchRequest(nodeReq: IncomingMessage, origin: string): Promise<Request> {
   const url = origin + (nodeReq.url ?? "/");
@@ -54,7 +57,7 @@ const server = createServer((nodeReq, nodeRes) => {
     try {
       const origin = `http://localhost:${PORT}`;
       const req = await toFetchRequest(nodeReq, origin);
-      const out = await handleRequest(req, store, { issuer, crehqApiBase, timeoutMs });
+      const out = await handleRequest(req, store, { issuer, crehqApiBase, timeoutMs, crehqSiteOrigin, crehqConnectSecret });
       await writeFetchResponse(out, nodeRes);
     } catch (err) {
       nodeRes.statusCode = 500;

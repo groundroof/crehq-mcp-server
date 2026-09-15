@@ -128,7 +128,8 @@ All relative to `ISSUER`:
 | Protected-resource metadata (RFC 9728) | GET | `/.well-known/oauth-protected-resource` |
 | Dynamic Client Registration (RFC 7591) | POST | `/register` |
 | Authorize (code + PKCE S256) | GET | `/authorize` |
-| Consent submit (links CREHQ key) | POST | `/authorize/consent` |
+| Consent submit (paste a CREHQ key) | POST | `/authorize/consent` |
+| Sign in with CREHQ callback | GET | `/authorize/crehq-callback` |
 | Token (authorization_code, refresh_token) | POST | `/token` |
 | MCP Streamable-HTTP | POST | `/mcp` |
 
@@ -138,14 +139,35 @@ the `WWW-Authenticate` / protected-resource metadata and runs the rest.
 
 ---
 
-## 6. The production CREHQ key bridge (PoC → live)
+## 6. Linking a CREHQ key: Sign in with CREHQ, paste, or raw bearer
 
-**PoC (what's built):** the consent screen asks the user to paste their `crehq_live_…` key. The server
-validates it against the live API and derives scopes by probing a basic read and a premium endpoint.
+**Sign in with CREHQ (primary; Worker side built, WordPress side built separately):**
+1. `GET /authorize` stores the pending authorization, sets
+   `crehq_mcp_pending=<pendingId>; Path=/authorize; Secure; HttpOnly; SameSite=Lax; Max-Age=600`, and
+   renders a button to `${CREHQ_SITE_ORIGIN}/mcp-connect/?pending=<pendingId>&client=<client name>`.
+2. WordPress requires login, shows its approval screen, then 302s to
+   `https://mcp.crehq.com/authorize/crehq-callback?pending=<pendingId>&grant=<grant>`
+   (or `&error=access_denied` on cancel, which is relayed to the client as `error=access_denied`).
+3. The callback requires the cookie to equal `pending`, then POSTs `{"grant":"…","pending":"…"}` to
+   `${CREHQ_API_BASE}/mcp-connect/exchange` with `X-CREHQ-Connect-Timestamp: <unix seconds>` and
+   `X-CREHQ-Connect-Signature: hex(HMAC-SHA256(CREHQ_CONNECT_SECRET, ts + "." + grant + "." + pending))`.
+4. HTTP 200 `{"key":"crehq_live_…","api_surface":"selfserve"|"full",…}` finishes through the same code
+   path as paste. Any other status shows a message page with the returned `message` (key-like strings
+   redacted).
 
-**Production "Sign in with CREHQ" (recommended next step, ~half a day on the WP side):** replace the
-paste step with a redirect to CREHQ's existing self-serve key system, which already exists and matches
-this design 1:1:
+Config: `CREHQ_SITE_ORIGIN` is a `[vars]` entry in `wrangler.toml`. `CREHQ_CONNECT_SECRET` is a Worker
+secret and must never go in `wrangler.toml`; the deploy workflow runs `wrangler secret put` from the
+GitHub secret of the same name when that secret is non-empty. Without it the button is hidden and
+only paste works.
+
+**Paste an API key ("Use an API key instead"):** validated against the live API; scopes derived by
+probing a basic read and a premium endpoint.
+
+**Raw key bearer:** `/mcp` also accepts `Authorization: Bearer crehq_live_…` for tools that cannot run
+OAuth (xAI API, Gemini CLI, Cursor, GenAI Studio). It is validated with the same probe and cached for
+300 s in KV under sha256(key).
+
+**Background: CREHQ's self-serve key system (what WordPress mints keys from):**
 
 - **Key store:** `xcrehqy_crehq_api_keys`. Secret of record is `key_hash` (SHA-256); `key_prefix` is
   the non-secret display hint; **scopes/tier live in the `permissions` JSON**, e.g.
@@ -158,19 +180,14 @@ this design 1:1:
   expired keys (the exact 403 this connector surfaces). Scope enforcement is the "apiscope lockdown"
   (note the `.bak-apiscope-*` file) — so **the server already gates by `permissions.scopes`**.
 
-**Bridge work to make it seamless:**
-1. Add an OIDC-style login at CREHQ (or a small signed redirect) that, on success, **looks up or mints**
-   a scoped key for the logged-in WP user and hands it back to this AS — so the user never sees/pastes a
-   raw key.
-2. Add a tiny authenticated endpoint, e.g. `GET /selfserve/usage` (already in the route namespace) or a
+**Remaining refinements:**
+1. Add a tiny authenticated endpoint, e.g. `GET /selfserve/usage` (already in the route namespace) or a
    new `GET /api-keys/introspect`, that returns the presented key's `permissions.scopes`. Then replace
    the probe-based scope derivation in `oauth.ts → validateCrehqKey()` with a direct read of those
    scopes (faster + authoritative). Map CREHQ scopes → MCP scopes:
    `selfserve:read`/basic tiers → `read:locations`; Intel/Enterprise tiers (or a `pack:*`/
    `read:intelligence` scope) → `read:intelligence`.
-3. (Optional) Record the issued connector grant against the WP user for revocation/billing.
-
-No WordPress change is required for the PoC to function — only to remove the paste step.
+2. (Optional) Record the issued connector grant against the WP user for revocation/billing.
 
 ---
 
@@ -206,7 +223,7 @@ a privacy policy + terms URL; clear tool descriptions (done); least-privilege sc
 | 3 | KV namespace ids (from step 2 commands) pasted into `wrangler.toml` | token storage |
 | 4 | A **sandbox CREHQ key** (mint via `/selfserve/signup` to Mark's email) for directory reviewers + your own end-to-end test | directory submission + real-row verification |
 | 5 | Privacy-policy + terms URLs (`https://crehq.com/privacy/`, `/terms/` — confirm they exist) | directory eligibility |
-| 6 | Go/no-go on building **"Sign in with CREHQ"** (§6) to remove the key-paste step | seamless UX (optional for launch) |
+| 6 | Set the **`CREHQ_CONNECT_SECRET`** GitHub secret (same value as WordPress) to turn on "Sign in with CREHQ" (§6) | seamless UX (paste works without it) |
 | 7 | Tier→scope policy: which CREHQ tiers grant `read:intelligence` (whitespace/co-tenancy/timeline/occupancy) | scope mapping (§6.2) |
 | 8 | (If self-serve API sales are gated — see project memory "HELD: P2 self-serve API") confirm it's OK to expose these tools publicly via the directory | business call |
 

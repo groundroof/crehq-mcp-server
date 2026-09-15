@@ -8,7 +8,9 @@
 #   npx wrangler kv namespace create OAUTH_KV --preview
 #
 # Secrets/vars to set (see DEPLOY.md):
-#   npx wrangler secret put ...        (none required for the PoC; key is per-user)
+#   CREHQ_CONNECT_SECRET (optional secret) — HMAC secret shared with CREHQ
+#     WordPress for "Sign in with CREHQ". NEVER put it in this file. CI syncs it
+#     from the GitHub secret of the same name; unset = paste-an-API-key only.
 #   ISSUER is set per-environment below.
 
 name = "crehq-mcp-remote"
@@ -42,6 +44,8 @@ preview_id = "7989402ab0df44f098f6573cb56b4dc2"
 ISSUER = "https://mcp.crehq.com"
 CREHQ_API_BASE = "https://crehq.com/wp-json/crehq/v1"
 CREHQ_TIMEOUT_MS = "30000"
+# CREHQ WordPress origin hosting the "Sign in with CREHQ" approval page (/mcp-connect/).
+CREHQ_SITE_ORIGIN = "https://crehq.com"
 
 # --- Custom domain (optional; recommended for the directory) -----------------
 # Requires crehq.com (or a chosen zone) to be on this Cloudflare account.

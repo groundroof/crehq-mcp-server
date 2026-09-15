@@ -51,6 +51,20 @@ jobs:
       - name: Full connector flow test
         run: node dist/test/full-flow.test.js
 
+      - name: Sync CREHQ connect secret
+        # Only runs the put when the GitHub secret is non-empty. secrets.* cannot
+        # be used in a step `if:`, so the guard lives in the script.
+        run: |
+          if [ -z "${CREHQ_CONNECT_SECRET}" ]; then
+            echo "CREHQ_CONNECT_SECRET GitHub secret is empty; skipping (Sign in with CREHQ stays hidden)."
+            exit 0
+          fi
+          echo "$CREHQ_CONNECT_SECRET" | npx wrangler secret put CREHQ_CONNECT_SECRET
+        env:
+          CREHQ_CONNECT_SECRET: ${{ secrets.CREHQ_CONNECT_SECRET }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
       - name: Deploy to Cloudflare Workers
         run: npx wrangler deploy
         env:

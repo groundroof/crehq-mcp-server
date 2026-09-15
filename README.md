@@ -75,7 +75,8 @@ approval. Until those routes are published, these three tools may return a
 
 ## Getting an API key
 
-1. **Free sandbox** (1,000 calls/mo, 2 req/s, no credit card):
+1. **Free sandbox** (1,000 calls/mo, 2 req/s, no credit card; rows per brand
+   are limited monthly, and every response shows the exact row budget):
    https://crehq.com/developers/sandbox/ — enter your email, complete the
    browser verification challenge, and a key is emailed to you.
    The key is delivered by email only and looks like `crehq_live_xxxxxxxx…`.
@@ -235,6 +236,14 @@ with a fix-it hint:
 - **401 / 403** → "invalid or revoked key / endpoint not in your tier" + upgrade link. For credit signals, FDD, site-selection criteria, contacts, provenance, change history, bulk data, whitespace, co-tenancy, or site timeline, call `crehq_request_upgrade`.
 - **404** → "check the id/slug; resolve it with a search tool first."
 - **429** → respects `Retry-After`; reminds you of the free-tier 2 req/s limit.
+- **Self-serve guidance** → whatever the API says about its own limits is passed
+  through verbatim: the API's `message`, `row_budget` (used / limit / basis /
+  reset), the `full_dataset` offer, `upgrade_url` / `enterprise_url`,
+  `did_you_mean` slugs, and the markets a brand is served in. Successful
+  self-serve calls lead with a short guidance block (`coverage_note`,
+  `total_available` / `has_more`, `row_budget`, `full_dataset`, `resolved_from`,
+  `market_scope`, and the Enhanced (D2) preview label, fields and note) ahead of
+  the JSON rows.
 - **5xx / timeout / network** → transient-error guidance to retry with backoff.
 
 Pagination, cache, and stream cursors (`X-WP-Total`, `X-CREHQ-Next-Since`,

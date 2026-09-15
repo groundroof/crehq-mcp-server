@@ -1,0 +1,25 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/selfserve/locations",
+    "query": {
+      "brand": "planet-fitness",
+      "limit": 1
+    }
+  },
+  "status": 429,
+  "headers": {
+    "content-type": "application/json; charset=UTF-8",
+    "retry-after": "47",
+    "x-ratelimit-remaining": "107",
+    "x-ratelimit-limit": "120"
+  },
+  "body": {
+    "error": "rate_limited",
+    "limit_type": "rate",
+    "tier": "free",
+    "message": "Per-second rate limit exceeded (2 req/s on free tier).",
+    "upgrade_message": "Upgrade to a paid tier for higher limits. See https://crehq.com/developers/sandbox/#pricing",
+    "upgrade_url": "https://crehq.com/developers/sandbox/"
+  }
+}

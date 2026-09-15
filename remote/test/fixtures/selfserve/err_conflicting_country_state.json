@@ -1,0 +1,25 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/selfserve/locations",
+    "query": {
+      "brand": "planet-fitness",
+      "state": "TX",
+      "country": "CA",
+      "limit": 1
+    }
+  },
+  "status": 400,
+  "headers": {
+    "content-type": "application/json; charset=UTF-8",
+    "x-ratelimit-remaining": "114",
+    "x-ratelimit-limit": "120"
+  },
+  "body": {
+    "code": "invalid_country",
+    "message": "state= is a US state, so country= must be US or omitted.",
+    "data": {
+      "status": 400
+    }
+  }
+}

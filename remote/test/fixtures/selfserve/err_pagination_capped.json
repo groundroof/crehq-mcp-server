@@ -1,0 +1,22 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/selfserve/locations",
+    "query": {
+      "brand": "planet-fitness",
+      "page": 99,
+      "limit": 1
+    }
+  },
+  "status": 403,
+  "headers": {
+    "content-type": "application/json; charset=UTF-8",
+    "x-ratelimit-remaining": "112",
+    "x-ratelimit-limit": "120"
+  },
+  "body": {
+    "error": "pagination_capped",
+    "message": "The sandbox does not support exhaustive pagination (page > 5). Bulk/whole-brand export requires a licensed dataset.",
+    "upgrade_url": "https://crehq.com/developers/upgrade/"
+  }
+}

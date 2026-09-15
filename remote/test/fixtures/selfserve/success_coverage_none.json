@@ -1,0 +1,46 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/selfserve/locations",
+    "query": {
+      "brand": "yummi-go-gourmet",
+      "limit": 2
+    }
+  },
+  "status": 200,
+  "headers": {
+    "content-type": "application/json; charset=UTF-8",
+    "x-ratelimit-remaining": "111",
+    "x-ratelimit-limit": "120"
+  },
+  "body": {
+    "tier": "free",
+    "fields": "D1",
+    "requested_fields": [],
+    "pack_fields": [],
+    "count": 0,
+    "per_call_cap": 50,
+    "capped": false,
+    "page": 1,
+    "max_page": 5,
+    "selector": {
+      "brand": "yummi-go-gourmet"
+    },
+    "locations": [],
+    "intelligence": null,
+    "quota": {
+      "monthly_limit": 1000,
+      "used": 3,
+      "remaining": 997
+    },
+    "notice": null,
+    "coverage": "none",
+    "message": "CREHQ has no published locations for this brand yet.",
+    "total_available": 0,
+    "showing": null,
+    "ordering": "state, city, name",
+    "has_more": false,
+    "end_of_results": false,
+    "coverage_note": "CREHQ has no published locations for this brand yet."
+  }
+}

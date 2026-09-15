@@ -1,0 +1,39 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/selfserve/locations",
+    "query": {
+      "brand": "cashland",
+      "limit": 5
+    }
+  },
+  "status": 403,
+  "headers": {
+    "content-type": "application/json; charset=UTF-8",
+    "x-ratelimit-remaining": "109",
+    "x-ratelimit-limit": "120"
+  },
+  "body": {
+    "error": "row_budget_exhausted",
+    "budget_type": "brand",
+    "message": "This key has received its 1 rows for Cashland this month \u2014 10% of 10 locations (max 50). Free (Sandbox) keys get real rows: 10% of each brand's published locations (at most 50 rows per brand) and 1,000 in total per month; every filter, radius and page counts. Pro (Early Access) ($99/month) raises that to 25% of each brand's published locations (at most 250 rows per brand) and 25,000 per month. The complete file is a dataset purchase, and buyers get full API access to the brands they bought. Budgets reset October 1, 2026 (UTC).",
+    "row_budget": {
+      "brand_used": 1,
+      "brand_limit": 1,
+      "brand_limit_basis": "10% of 10 locations (max 50)",
+      "month_used": 4,
+      "month_limit": 1000,
+      "resets_at": "2026-10-01T00:00:00Z"
+    },
+    "upgrade_url": "https://crehq.com/developers/sandbox/#pro-checkout",
+    "brand": "cashland",
+    "full_dataset": {
+      "name": "Cashland",
+      "url": "https://crehq.com/data-store/cashland/",
+      "price_usd": 79,
+      "tier": "D1",
+      "scope": "full",
+      "location_count": 10
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/selfserve/locations",
+    "query": {
+      "brand": "plannet-fitnes",
+      "limit": 1
+    }
+  },
+  "status": 404,
+  "headers": {
+    "content-type": "application/json; charset=UTF-8",
+    "x-ratelimit-remaining": "115",
+    "x-ratelimit-limit": "120"
+  },
+  "body": {
+    "error": "brand_not_found",
+    "brand": "plannet-fitnes",
+    "hint": "Try a slug from the data-store catalog, e.g. planet-fitness or 7-eleven.",
+    "did_you_mean": [
+      {
+        "slug": "planet-fitness",
+        "name": "Planet Fitness"
+      }
+    ]
+  }
+}

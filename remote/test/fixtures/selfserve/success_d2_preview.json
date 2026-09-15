@@ -1,0 +1,268 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/selfserve/locations",
+    "query": {
+      "brand": "jimmy-johns",
+      "limit": 2
+    }
+  },
+  "status": 200,
+  "headers": {
+    "content-type": "application/json; charset=UTF-8",
+    "x-ratelimit-remaining": "118",
+    "x-ratelimit-limit": "120"
+  },
+  "body": {
+    "tier": "free",
+    "fields": "D1",
+    "requested_fields": [],
+    "pack_fields": [],
+    "count": 2,
+    "per_call_cap": 50,
+    "capped": false,
+    "page": 1,
+    "max_page": 5,
+    "selector": {
+      "brand": "jimmy-johns"
+    },
+    "locations": [
+      {
+        "name": "Jimmy John's",
+        "address": "634 1st St N, Ste 300",
+        "city": "Alabaster",
+        "state": "AL",
+        "zip_code": "35007",
+        "country": "US",
+        "latitude": 33.2504801,
+        "longitude": -86.8142713,
+        "category": "restaurant",
+        "phone": "+12055648228",
+        "hours": {
+          "monday": [
+            {
+              "open": "10:00",
+              "close": "22:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "open": "10:00",
+              "close": "22:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "open": "10:00",
+              "close": "22:00"
+            }
+          ],
+          "thursday": [
+            {
+              "open": "10:00",
+              "close": "22:00"
+            }
+          ],
+          "friday": [
+            {
+              "open": "10:00",
+              "close": "22:00"
+            }
+          ],
+          "saturday": [
+            {
+              "open": "10:00",
+              "close": "22:00"
+            }
+          ],
+          "sunday": [
+            {
+              "open": "10:00",
+              "close": "22:00"
+            }
+          ],
+          "holidays_closed": [],
+          "notes": null
+        },
+        "store_id": "2024084786#LocalBusiness",
+        "status": "active",
+        "d2_preview": {
+          "amenities": [
+            "Online Order",
+            "Fast Food",
+            "Fast Food Delivery",
+            "Pick up",
+            "Sandwich Catering",
+            "Mobile App Ordering",
+            "In-Store Pickup",
+            "Delivery",
+            "Drive-Thru",
+            "Curbside Pickup",
+            "Online Ordering",
+            "Rewards / Loyalty"
+          ],
+          "has_drive_thru": true,
+          "has_mobile_order": true,
+          "late_night_hours": true,
+          "has_catering": true,
+          "alcohol_served": false
+        }
+      },
+      {
+        "name": "Jimmy John's",
+        "address": "126 N College St",
+        "city": "Auburn",
+        "state": "AL",
+        "zip_code": "36830",
+        "country": "US",
+        "latitude": 32.607309,
+        "longitude": -85.4815493,
+        "category": "restaurant",
+        "phone": "+13345020444",
+        "hours": {
+          "monday": [
+            {
+              "open": "10:30",
+              "close": "21:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "open": "10:30",
+              "close": "21:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "open": "10:30",
+              "close": "21:00"
+            }
+          ],
+          "thursday": [
+            {
+              "open": "10:30",
+              "close": "22:00"
+            }
+          ],
+          "friday": [
+            {
+              "open": "10:30",
+              "close": "22:00"
+            }
+          ],
+          "saturday": [
+            {
+              "open": "10:30",
+              "close": "22:00"
+            }
+          ],
+          "sunday": [
+            {
+              "open": "10:30",
+              "close": "21:00"
+            }
+          ],
+          "holidays_closed": [],
+          "notes": null
+        },
+        "store_id": "2024084290#LocalBusiness",
+        "status": "active",
+        "d2_preview": {
+          "amenities": [
+            "Online Order",
+            "Fast Food",
+            "Fast Food Delivery",
+            "Pick up",
+            "Sandwich Catering",
+            "Mobile App Ordering",
+            "In-Store Pickup",
+            "Delivery",
+            "Online Ordering",
+            "Rewards / Loyalty"
+          ],
+          "has_drive_thru": false,
+          "has_mobile_order": true,
+          "late_night_hours": true,
+          "has_catering": true,
+          "alcohol_served": false
+        }
+      }
+    ],
+    "intelligence": null,
+    "quota": {
+      "monthly_limit": 1000,
+      "used": 7,
+      "remaining": 993
+    },
+    "notice": null,
+    "total_available": 2801,
+    "showing": {
+      "from": 1,
+      "to": 2
+    },
+    "ordering": "state, city, name",
+    "has_more": true,
+    "end_of_results": false,
+    "coverage_note": "Rows 1\u20132 of 2,801, ordered by state, city, name. Next: page=2. Row budget for this brand: 2 of 50 used this month, 48 left \u2014 10% of 2,801 locations (max 50). The complete file is a licensed dataset. The sandbox stops at page 5 (10 rows at limit=2). See full_dataset.",
+    "full_dataset": {
+      "name": "Jimmy John's",
+      "url": "https://crehq.com/data-store/jimmy-johns/",
+      "price_usd": 99,
+      "tier": "D1",
+      "scope": "full",
+      "location_count": 2801
+    },
+    "row_budget": {
+      "brand_used": 2,
+      "brand_limit": 50,
+      "brand_limit_basis": "10% of 2,801 locations (max 50)",
+      "brand_remaining": 48,
+      "month_used": 9,
+      "month_limit": 1000,
+      "month_remaining": 991,
+      "resets_at": "2026-10-01T00:00:00Z",
+      "truncated": false
+    },
+    "d2_preview": {
+      "label": "Enhanced (D2) preview",
+      "tier": "D2",
+      "product": "Location + Enhanced Data",
+      "rows_with_preview": 2,
+      "max_rows": 5,
+      "fields": [
+        {
+          "field": "amenities",
+          "fill_pct": 99.57
+        },
+        {
+          "field": "has_drive_thru",
+          "fill_pct": 97.07
+        },
+        {
+          "field": "has_mobile_order",
+          "fill_pct": 97.32
+        },
+        {
+          "field": "late_night_hours",
+          "fill_pct": 99.39
+        },
+        {
+          "field": "has_catering",
+          "fill_pct": 99.32
+        },
+        {
+          "field": "alcohol_served",
+          "fill_pct": 100
+        }
+      ],
+      "note": "Everything in the Location File, plus the store attributes the brand publishes and market context around each location (trade area, demographics, drive-time, road traffic).",
+      "monthly_limit": 5,
+      "monthly_used": 2,
+      "full_d2_dataset": {
+        "name": "Jimmy John's",
+        "url": "https://crehq.com/data-store/jimmy-johns/",
+        "price_usd": 495
+      }
+    }
+  }
+}

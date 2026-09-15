@@ -38,6 +38,9 @@ jobs:
       - name: Affiliation tool contract test
         run: node test/affiliation-tool.test.mjs
 
+      - name: Self-serve guidance test
+        run: node test/selfserve-guidance.test.mjs
+
       - name: Verify tool registry
         run: |
           node --input-type=module <<'NODE'

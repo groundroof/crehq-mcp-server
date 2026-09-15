@@ -1,0 +1,27 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/selfserve/locations",
+    "query": {
+      "brand": "planet-fitness",
+      "fields": "provenance",
+      "limit": 1
+    }
+  },
+  "status": 402,
+  "headers": {
+    "content-type": "application/json; charset=UTF-8",
+    "x-ratelimit-remaining": "113",
+    "x-ratelimit-limit": "120"
+  },
+  "body": {
+    "error": "payment_required",
+    "intent_id": 34,
+    "tracking_id": "selfserve_intent:34",
+    "field": "provenance",
+    "data_tier": "D2",
+    "message": "\"provenance\" is a D2 premium field (Per-field source attribution and multi-source verification trace) not available on this key.",
+    "dataset_or_pack": "multi-source-provenance",
+    "upgrade_url": "https://crehq.com/developers/sandbox/#pro-checkout"
+  }
+}

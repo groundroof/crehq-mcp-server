@@ -1,0 +1,30 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/selfserve/locations",
+    "query": {
+      "brand": "mcdonalds",
+      "country": "AQ",
+      "limit": 1
+    }
+  },
+  "status": 404,
+  "headers": {
+    "content-type": "application/json; charset=UTF-8",
+    "x-ratelimit-remaining": "116",
+    "x-ratelimit-limit": "120"
+  },
+  "body": {
+    "error": "brand_market_not_available",
+    "brand": "mcdonalds-corporation",
+    "country": "AQ",
+    "message": "The sandbox serves this brand for these countries only: CN, ES, IN, IT, US. Pass one of them as country=.",
+    "available_countries": [
+      "CN",
+      "ES",
+      "IN",
+      "IT",
+      "US"
+    ]
+  }
+}

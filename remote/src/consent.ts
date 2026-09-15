@@ -44,7 +44,7 @@ export function consentPage(opts: {
       <input id="apikey" name="crehq_api_key" type="password" placeholder="crehq_live_..." required
         autocapitalize="off" autocorrect="off" spellcheck="false">
       <p class="hint">Paste the key from your <a href="https://crehq.com/api-keys/" target="_blank" rel="noopener">CREHQ account</a>,
-        or get a free sandbox key (1,000 calls/mo) at <a href="https://crehq.com/developers/sandbox/" target="_blank" rel="noopener">crehq.com/developers/sandbox</a>.
+        or get a free sandbox key (1,000 calls/mo; rows per brand are limited monthly, and each response shows your exact row budget) at <a href="https://crehq.com/developers/sandbox/" target="_blank" rel="noopener">crehq.com/developers/sandbox</a>.
         Your tier determines whether premium intelligence tools are unlocked.</p>
       <button type="submit"${opts.signInUrl ? ' class="secondary"' : ""}>Authorize${opts.signInUrl ? " with API key" : ""}</button>
     </form>`;

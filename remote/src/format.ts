@@ -3,28 +3,40 @@
  * CrehqApiError into a non-fatal, agent-readable message (tools surface errors
  * as content + isError, never by throwing, so one failing call does not kill
  * the agent's turn).
+ *
+ * Self-serve responses carry their own guidance (row budgets, coverage notes,
+ * full-dataset offers, upgrade links, brand suggestions, markets, D2 preview
+ * labels); guidance.ts relays it as short lines ahead of the data.
  */
 import { CrehqApiError, type CrehqResult } from "./client.js";
+import { errorCode, errorGuidanceLines, successGuidanceLines } from "./guidance.js";
 
 export interface ToolContent {
   content: { type: "text"; text: string }[];
   isError?: boolean;
 }
 
-/** Wrap a successful API result as a pretty-printed JSON text block + meta. */
+/** Wrap a successful API result: guidance lines (if the API sent any), pretty-printed JSON, meta. */
 export function ok(result: CrehqResult): ToolContent {
+  const guidance = successGuidanceLines(result.data);
+  const guidanceNote =
+    guidance.length > 0 ? `--- CREHQ guidance (from this response) ---\n${guidance.join("\n")}\n\n--- data ---\n` : "";
   const metaKeys = Object.keys(result.meta);
   const metaNote =
     metaKeys.length > 0 ? `\n\n--- response metadata ---\n${formatMeta(result.meta)}` : "";
   return {
-    content: [{ type: "text", text: JSON.stringify(result.data, null, 2) + metaNote }],
+    content: [{ type: "text", text: guidanceNote + JSON.stringify(result.data, null, 2) + metaNote }],
   };
 }
 
-/** Wrap a caught error as a non-fatal tool error with an actionable hint. */
+/** Wrap a caught error as a non-fatal tool error: the API's message, its guidance, and a next step. */
 export function fail(err: unknown): ToolContent {
   if (err instanceof CrehqApiError) {
-    const lines = [`CREHQ API error (HTTP ${err.status || "n/a"}): ${err.message}`];
+    const code = errorCode(err.body);
+    const lines = [
+      `CREHQ API error (HTTP ${err.status || "n/a"}${code ? `, ${code}` : ""}): ${err.message}`,
+      ...errorGuidanceLines(err.body),
+    ];
     if (err.hint) lines.push(`Suggestion: ${err.hint}`);
     return { content: [{ type: "text", text: lines.join("\n") }], isError: true };
   }

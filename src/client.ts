@@ -9,6 +9,8 @@
  *  - Surface CREHQ pagination + cache + stream headers to the caller.
  */
 
+import { apiMessage as guidanceMessage, hintForCode } from "./guidance.js";
+
 export const DEFAULT_API_BASE = "https://crehq.com/wp-json/crehq/v1";
 const SANDBOX_URL = "https://crehq.com/developers/sandbox/";
 const USER_AGENT = "crehq-mcp-server/0.1.7";
@@ -214,21 +216,25 @@ export class CrehqClient {
 
   /** Map a non-2xx response into a CrehqApiError with an actionable hint. */
   private toApiError(status: number, body: unknown, meta: Record<string, string>): CrehqApiError {
-    const apiMessage = extractMessage(body);
+    // The API's own message (built from `error` + `did_you_mean` when it sent none)
+    // and a code-specific next step; generic HTTP-status copy is only the fallback.
+    const apiMessage = guidanceMessage(body);
+    const codeHint = hintForCode(body);
 
     switch (status) {
       case 401:
         return new CrehqApiError(
           401,
           apiMessage ?? "Unauthorized: no API key was accepted.",
-          `Set CREHQ_API_KEY to a valid key. Get a free sandbox key (1,000 calls/mo, no credit card) at ${SANDBOX_URL}.`,
+          codeHint ??
+            `Set CREHQ_API_KEY to a valid key. Get a free sandbox key (1,000 calls/mo, no credit card; rows per brand are limited monthly and every response shows the exact row budget) at ${SANDBOX_URL}.`,
           body,
         );
       case 403:
         return new CrehqApiError(
           403,
           apiMessage ?? "Forbidden: the API key is invalid, revoked, or not scoped for this endpoint.",
-          `Verify the key is active and that your tier includes this endpoint. If this was a request for credit signals, FDD, site-selection criteria, contacts, source provenance, change history, bulk data, whitespace, co-tenancy, site timeline, or higher limits, use crehq_request_upgrade so CREHQ can record upgrade intent. Upgrade or request scope at https://crehq.com/api-keys/. Sandbox keys: ${SANDBOX_URL}.`,
+          codeHint ?? `Verify the key is active and that your tier includes this endpoint. If this was a request for credit signals, FDD, site-selection criteria, contacts, source provenance, change history, bulk data, whitespace, co-tenancy, site timeline, or higher limits, use crehq_request_upgrade so CREHQ can record upgrade intent. Upgrade or request scope at https://crehq.com/api-keys/. Sandbox keys: ${SANDBOX_URL}.`,
           body,
         );
       case 404:
@@ -290,12 +296,3 @@ export class CrehqClient {
   }
 }
 
-/** Pull a human message out of a WP-REST / CREHQ error body. */
-function extractMessage(body: unknown): string | undefined {
-  if (body && typeof body === "object" && "message" in body) {
-    const m = (body as { message?: unknown }).message;
-    if (typeof m === "string" && m.length > 0) return m;
-  }
-  if (typeof body === "string" && body.length > 0 && body.length < 500) return body;
-  return undefined;
-}

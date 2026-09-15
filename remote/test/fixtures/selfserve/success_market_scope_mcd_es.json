@@ -1,0 +1,186 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/selfserve/locations",
+    "query": {
+      "brand": "mcdonalds",
+      "country": "ES",
+      "limit": 2
+    }
+  },
+  "status": 200,
+  "headers": {
+    "content-type": "application/json; charset=UTF-8",
+    "x-ratelimit-remaining": "108",
+    "x-ratelimit-limit": "120"
+  },
+  "body": {
+    "tier": "free",
+    "fields": "D1",
+    "requested_fields": [],
+    "pack_fields": [],
+    "count": 2,
+    "per_call_cap": 50,
+    "capped": false,
+    "page": 1,
+    "max_page": 5,
+    "selector": {
+      "brand": "mcdonalds-es",
+      "country": "ES"
+    },
+    "locations": [
+      {
+        "name": "Albacenter Mall",
+        "address": "C/Alcalde Conangla S/N CC Albacenter",
+        "city": "Albacete",
+        "state": "Albacete",
+        "zip_code": "02006",
+        "country": "ES",
+        "latitude": 38.9903917,
+        "longitude": -1.8467694,
+        "category": "fast_food_restaurant",
+        "phone": null,
+        "hours": {
+          "monday": [
+            {
+              "open": "11:00",
+              "close": "23:30"
+            }
+          ],
+          "tuesday": [
+            {
+              "open": "11:00",
+              "close": "23:30"
+            }
+          ],
+          "wednesday": [
+            {
+              "open": "11:00",
+              "close": "23:30"
+            }
+          ],
+          "thursday": [
+            {
+              "open": "11:00",
+              "close": "23:30"
+            }
+          ],
+          "friday": [
+            {
+              "open": "11:00",
+              "close": "00:00"
+            }
+          ],
+          "saturday": [
+            {
+              "open": "11:00",
+              "close": "00:00"
+            }
+          ],
+          "sunday": [
+            {
+              "open": "12:00",
+              "close": "00:00"
+            }
+          ],
+          "holidays_closed": [],
+          "notes": null
+        },
+        "store_id": "mcdonalds-es-1494",
+        "status": "active"
+      },
+      {
+        "name": "Albacete",
+        "address": "Centro Comercial, Avenida Primero de Mayo, s/n",
+        "city": "Albacete",
+        "state": "Albacete",
+        "zip_code": "02006",
+        "country": "ES",
+        "latitude": 38.9845,
+        "longitude": -1.86788,
+        "category": "fast_food_restaurant",
+        "phone": "615605861",
+        "hours": {
+          "monday": [
+            {
+              "open": "12:00",
+              "close": "00:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "open": "12:00",
+              "close": "00:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "open": "12:00",
+              "close": "00:00"
+            }
+          ],
+          "thursday": [
+            {
+              "open": "12:00",
+              "close": "00:00"
+            }
+          ],
+          "friday": [
+            {
+              "open": "12:00",
+              "close": "00:00"
+            }
+          ],
+          "saturday": [
+            {
+              "open": "12:00",
+              "close": "00:00"
+            }
+          ],
+          "sunday": [
+            {
+              "open": "12:00",
+              "close": "00:00"
+            }
+          ],
+          "holidays_closed": [],
+          "notes": "delivery: Abierto de 11:00 a 23:15"
+        },
+        "store_id": "mcdonalds-es-35",
+        "status": "active"
+      }
+    ],
+    "intelligence": null,
+    "quota": {
+      "monthly_limit": 1000,
+      "used": 5,
+      "remaining": 995
+    },
+    "notice": null,
+    "market_scope": {
+      "country": "ES",
+      "company_id": 100129125,
+      "basis": "mcdonalds_market_map"
+    },
+    "total_available": 675,
+    "showing": {
+      "from": 1,
+      "to": 2
+    },
+    "ordering": "state, city, name",
+    "has_more": true,
+    "end_of_results": false,
+    "coverage_note": "Rows 1\u20132 of 675, ordered by state, city, name. Next: page=2. Row budget for this brand: 2 of 50 used this month, 48 left \u2014 10% of 675 locations (max 50). The complete file is a licensed dataset. The sandbox stops at page 5 (10 rows at limit=2).",
+    "row_budget": {
+      "brand_used": 2,
+      "brand_limit": 50,
+      "brand_limit_basis": "10% of 675 locations (max 50)",
+      "brand_remaining": 48,
+      "month_used": 6,
+      "month_limit": 1000,
+      "month_remaining": 994,
+      "resets_at": "2026-10-01T00:00:00Z",
+      "truncated": false
+    }
+  }
+}

@@ -1,0 +1,122 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/selfserve/locations",
+    "query": {
+      "brand": "cashland",
+      "limit": 5
+    }
+  },
+  "status": 200,
+  "headers": {
+    "content-type": "application/json; charset=UTF-8",
+    "x-ratelimit-remaining": "110",
+    "x-ratelimit-limit": "120"
+  },
+  "body": {
+    "tier": "free",
+    "fields": "D1",
+    "requested_fields": [],
+    "pack_fields": [],
+    "count": 1,
+    "per_call_cap": 50,
+    "capped": false,
+    "page": 1,
+    "max_page": 5,
+    "selector": {
+      "brand": "cashland"
+    },
+    "locations": [
+      {
+        "name": "Cashland - Next to Aarons",
+        "address": "2420a W. Owen K Garriott",
+        "city": "Enid",
+        "state": "OK",
+        "zip_code": "73703",
+        "country": "US",
+        "latitude": 36.390795,
+        "longitude": -97.908246,
+        "category": "retail_store",
+        "phone": "+1-580-234-4447",
+        "hours": {
+          "monday": [
+            {
+              "open": "10:00",
+              "close": "18:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "open": "10:00",
+              "close": "18:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "open": "10:00",
+              "close": "18:00"
+            }
+          ],
+          "thursday": [
+            {
+              "open": "10:00",
+              "close": "18:00"
+            }
+          ],
+          "friday": [
+            {
+              "open": "10:00",
+              "close": "18:00"
+            }
+          ],
+          "saturday": [
+            {
+              "open": "10:00",
+              "close": "14:00"
+            }
+          ],
+          "sunday": [],
+          "holidays_closed": [],
+          "notes": null
+        },
+        "store_id": "cashland-cashland-next-to-aarons",
+        "status": "active"
+      }
+    ],
+    "intelligence": null,
+    "quota": {
+      "monthly_limit": 1000,
+      "used": 4,
+      "remaining": 996
+    },
+    "notice": null,
+    "total_available": 10,
+    "showing": {
+      "from": 1,
+      "to": 1
+    },
+    "ordering": "state, city, name",
+    "has_more": true,
+    "end_of_results": false,
+    "coverage_note": "Rows 1\u20131 of 10, ordered by state, city, name. Rows were cut to this key's remaining row budget for the brand. Row budget for this brand: 1 of 1 used this month, 0 left \u2014 10% of 10 locations (max 50). The complete file is a licensed dataset. See full_dataset.",
+    "full_dataset": {
+      "name": "Cashland",
+      "url": "https://crehq.com/data-store/cashland/",
+      "price_usd": 79,
+      "tier": "D1",
+      "scope": "full",
+      "location_count": 10
+    },
+    "row_budget": {
+      "brand_used": 1,
+      "brand_limit": 1,
+      "brand_limit_basis": "10% of 10 locations (max 50)",
+      "brand_remaining": 0,
+      "month_used": 4,
+      "month_limit": 1000,
+      "month_remaining": 996,
+      "resets_at": "2026-10-01T00:00:00Z",
+      "truncated": true
+    }
+  }
+}

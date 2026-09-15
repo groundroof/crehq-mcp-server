@@ -1,0 +1,27 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/selfserve/locations",
+    "query": {
+      "brand": "giant-tiger-canada",
+      "limit": 1
+    }
+  },
+  "status": 403,
+  "headers": {
+    "content-type": "application/json; charset=UTF-8",
+    "x-ratelimit-remaining": "111",
+    "x-ratelimit-limit": "120"
+  },
+  "body": {
+    "error": "selector_cap",
+    "selector_type": "brand",
+    "selector": "giant-tiger-canada",
+    "cap": 25,
+    "used": 25,
+    "period": "2026-09",
+    "message": "Monthly distinct-brand cap reached: the free tier covers up to 25 distinct brands per month. Brands you have already queried this month keep working. Self-serve keys are licensed for internal evaluation and analysis only \u2014 no production or embedded serving to third parties. Broad-coverage, systematic, or production use requires an enterprise license. Pro (Early Access) ($99/month) covers up to 150 distinct brands per month.",
+    "upgrade_url": "https://crehq.com/developers/sandbox/#pro-checkout",
+    "enterprise_url": "https://crehq.com/contact/?intent=api_enterprise"
+  }
+}

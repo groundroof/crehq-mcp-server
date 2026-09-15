@@ -45,6 +45,9 @@ jobs:
       - name: Affiliation tool contract test
         run: node dist/test/affiliation-tool.test.js
 
+      - name: Self-serve guidance test
+        run: node dist/test/selfserve-guidance.test.js
+
       - name: OAuth flow test
         run: npm run test:oauth
 

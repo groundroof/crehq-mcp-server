@@ -44,7 +44,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "npm run build && node test/affiliation-tool.test.mjs",
+    "test": "npm run build && node test/affiliation-tool.test.mjs && node test/selfserve-guidance.test.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
     "start": "node dist/index.js",

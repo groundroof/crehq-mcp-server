@@ -1,0 +1,118 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/selfserve/locations",
+    "query": {
+      "brand": "planetfitness",
+      "limit": 1
+    }
+  },
+  "status": 200,
+  "headers": {
+    "content-type": "application/json; charset=UTF-8",
+    "x-ratelimit-remaining": "119",
+    "x-ratelimit-limit": "120"
+  },
+  "body": {
+    "tier": "free",
+    "fields": "D1",
+    "requested_fields": [],
+    "pack_fields": [],
+    "count": 1,
+    "per_call_cap": 50,
+    "capped": false,
+    "page": 1,
+    "max_page": 5,
+    "selector": {
+      "brand": "planet-fitness"
+    },
+    "locations": [
+      {
+        "name": "Airdrie, AB",
+        "address": "2881 Main St SE",
+        "city": "Airdrie",
+        "state": "AB",
+        "zip_code": "T4B 3G5",
+        "country": "CA",
+        "latitude": 51.262451,
+        "longitude": -114.007437,
+        "category": "gym",
+        "phone": "587-651-6794",
+        "hours": {
+          "monday": [
+            {
+              "open": "05:00",
+              "close": "23:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "open": "05:00",
+              "close": "23:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "open": "05:00",
+              "close": "23:00"
+            }
+          ],
+          "thursday": [
+            {
+              "open": "05:00",
+              "close": "23:00"
+            }
+          ],
+          "friday": [
+            {
+              "open": "05:00",
+              "close": "21:00"
+            }
+          ],
+          "saturday": [],
+          "sunday": [],
+          "holidays_closed": [],
+          "notes": null
+        },
+        "store_id": "pf-3747",
+        "status": "active"
+      }
+    ],
+    "intelligence": null,
+    "quota": {
+      "monthly_limit": 1000,
+      "used": 6,
+      "remaining": 994
+    },
+    "notice": null,
+    "resolved_from": "planetfitness",
+    "total_available": 2861,
+    "showing": {
+      "from": 1,
+      "to": 1
+    },
+    "ordering": "state, city, name",
+    "has_more": true,
+    "end_of_results": false,
+    "coverage_note": "Rows 1\u20131 of 2,861, ordered by state, city, name. Next: page=2. Row budget for this brand: 4 of 50 used this month, 46 left \u2014 10% of 2,861 locations (max 50). The complete file is a licensed dataset. The sandbox stops at page 5 (5 rows at limit=1). See full_dataset.",
+    "full_dataset": {
+      "name": "Planet Fitness",
+      "url": "https://crehq.com/data-store/planet-fitness/",
+      "price_usd": 99,
+      "tier": "D1",
+      "scope": "full",
+      "location_count": 2861
+    },
+    "row_budget": {
+      "brand_used": 4,
+      "brand_limit": 50,
+      "brand_limit_basis": "10% of 2,861 locations (max 50)",
+      "brand_remaining": 46,
+      "month_used": 7,
+      "month_limit": 1000,
+      "month_remaining": 993,
+      "resets_at": "2026-10-01T00:00:00Z",
+      "truncated": false
+    }
+  }
+}

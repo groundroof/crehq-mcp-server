@@ -40,6 +40,12 @@ const perPage = z
   .describe("Results per page (max 200, default 50).");
 const page = z.number().int().min(1).optional().describe("Page number for cursor/offset pagination (default 1).");
 const d2LocationFields = "provenance,sources,confidence_score,first_observed_at";
+/**
+ * Appended to the self-serve location tools. The API reports the exact budget
+ * on every call, so no limit numbers are hard-coded here.
+ */
+const selfServeGuidanceNote =
+  "On CREHQ self-serve/sandbox keys the rows you receive per brand are limited monthly: every response states the exact row_budget, a coverage_note, and the full_dataset offer when a complete file is on sale. Relay those to the user instead of paging or re-filtering around the limit. If a brand is not found, retry with one of the did_you_mean slugs the error returns.";
 
 const upgradeIntentFields: Record<string, string> = {
   franchise_fdd: "fdd",
@@ -303,10 +309,15 @@ export const TOOLS: ToolDef[] = [
   {
     name: "crehq_locations_list",
     description:
-      "List individual store/branch/site records, filterable by brand, US state, and category. Each location carries a stable entity_uid, geocoded address, open/closed status, and a multi-source verification trace. The raw, government-cross-checked footprint behind any brand. Free sandbox keys can use this as a bounded brand lookup. This footprint output does NOT include credit signals, ownership/rating history, capital structure, site-selection criteria, FDD/Item 19, or tenant-credit diligence; for those requests use the relevant premium tool if available, otherwise call crehq_request_upgrade with the matching requested_data value.",
+      "List individual store/branch/site records, filterable by brand, US state, and category. Each location carries a stable entity_uid, geocoded address, open/closed status, and a multi-source verification trace. The raw, government-cross-checked footprint behind any brand. Free sandbox keys can use this as a bounded brand lookup. This footprint output does NOT include credit signals, ownership/rating history, capital structure, site-selection criteria, FDD/Item 19, or tenant-credit diligence; for those requests use the relevant premium tool if available, otherwise call crehq_request_upgrade with the matching requested_data value. " +
+      selfServeGuidanceNote,
     schema: {
       brand: z.string().optional().describe("Brand slug or name to filter by (e.g. 'planet-fitness')."),
       state: z.string().optional().describe("US state, 2-letter code or full name (e.g. 'TX')."),
+      country: z
+        .string()
+        .optional()
+        .describe("Self-serve keys: 2-letter ISO country code (e.g. 'ES') to pick the market for brands CREHQ serves per country. With state= it must be US."),
       category: z.string().optional().describe("Vertical/category slug."),
       include_provenance: z
         .boolean()
@@ -322,6 +333,8 @@ export const TOOLS: ToolDef[] = [
               c.request("/selfserve/locations", {
                 query: {
                   brand: a.brand as string,
+                  state: a.state as string,
+                  country: a.country as string,
                   limit: (a.per_page as number) ?? 25,
                   page: a.page as number,
                   fields: a.include_provenance ? d2LocationFields : undefined,
@@ -462,7 +475,8 @@ export const TOOLS: ToolDef[] = [
   {
     name: "crehq_locations_nearby",
     description:
-      "Radius search: find all tracked locations within N miles of a lat/lng point. Powers trade-area analysis, competitor mapping, and 'what's near this address' questions. Returns distance-sorted, government-verified storefronts across every vertical CREHQ covers.",
+      "Radius search: find all tracked locations within N miles of a lat/lng point. Powers trade-area analysis, competitor mapping, and 'what's near this address' questions. Returns distance-sorted, government-verified storefronts across every vertical CREHQ covers. " +
+      selfServeGuidanceNote,
     schema: {
       lat: z.number().describe("Latitude (decimal degrees)."),
       lng: z.number().describe("Longitude (decimal degrees)."),

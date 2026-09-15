@@ -10,7 +10,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "npm run build && node dist/test/affiliation-tool.test.js && node dist/test/full-flow.test.js",
+    "test": "npm run build && node dist/test/affiliation-tool.test.js && node dist/test/selfserve-guidance.test.js && node dist/test/full-flow.test.js",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
     "dev": "npm run build && node dist/dev-server.js",

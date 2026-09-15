@@ -13,6 +13,8 @@
  * either; only the non-secret key_prefix may be recorded.
  */
 
+import { apiMessage as guidanceMessage, hintForCode } from "./guidance.js";
+
 export const DEFAULT_API_BASE = "https://crehq.com/wp-json/crehq/v1";
 /** Public CREHQ WordPress origin that hosts the "Sign in with CREHQ" approval page (/mcp-connect/). */
 export const DEFAULT_SITE_ORIGIN = "https://crehq.com";
@@ -178,27 +180,30 @@ export class CrehqClient {
   }
 
   private toApiError(status: number, body: unknown, meta: Record<string, string>): CrehqApiError {
-    const apiMessage = extractMessage(body);
+    // The API's own message (built from `error` + `did_you_mean` when it sent none)
+    // and a code-specific next step; generic HTTP-status copy is only the fallback.
+    const apiMessage = guidanceMessage(body);
+    const codeHint = hintForCode(body);
     switch (status) {
       case 401:
         return new CrehqApiError(
           401,
           apiMessage ?? "Unauthorized: the linked CREHQ API key was not accepted.",
-          `The key may be revoked or expired. Re-authorize the connector. Free sandbox keys: ${SIGNUP_URL}.`,
+          codeHint ?? `The key may be revoked or expired. Re-authorize the connector. Free sandbox keys: ${SIGNUP_URL}.`,
           body,
         );
       case 403:
         return new CrehqApiError(
           403,
           apiMessage ?? "Forbidden: the API key is not scoped for this endpoint.",
-          "Your CREHQ tier does not include this data. Upgrade at https://crehq.com/api-keys/ to unlock it.",
+          codeHint ?? "Your CREHQ tier does not include this data. Upgrade at https://crehq.com/api-keys/ to unlock it.",
           body,
         );
       case 404:
         return new CrehqApiError(
           404,
           apiMessage ?? "Not found: the requested record or path does not exist.",
-          "Check the id/slug/uid. Use the search tools to resolve an identifier first.",
+          codeHint ?? "Check the id/slug/uid. Use the search tools to resolve an identifier first.",
           body,
         );
       case 429: {
@@ -206,7 +211,7 @@ export class CrehqClient {
         return new CrehqApiError(
           429,
           apiMessage ?? "Rate limited.",
-          retry ? `Slow down and retry after ${retry}s.` : "Slow down and retry shortly.",
+          codeHint ?? (retry ? `Slow down and retry after ${retry}s.` : "Slow down and retry shortly."),
           body,
         );
       }
@@ -222,18 +227,9 @@ export class CrehqClient {
         return new CrehqApiError(
           status,
           apiMessage ?? `Request failed (${status}).`,
-          "Review the parameters against the tool's input schema.",
+          codeHint ?? "Review the parameters against the tool's input schema.",
           body,
         );
     }
   }
-}
-
-function extractMessage(body: unknown): string | undefined {
-  if (body && typeof body === "object" && "message" in body) {
-    const m = (body as { message?: unknown }).message;
-    if (typeof m === "string" && m.length > 0) return m;
-  }
-  if (typeof body === "string" && body.length > 0 && body.length < 500) return body;
-  return undefined;
 }

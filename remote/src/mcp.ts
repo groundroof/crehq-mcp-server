@@ -132,9 +132,10 @@ export async function handleRpc(
               {
                 type: "text",
                 text:
-                  `"${tool.name}" is not available with a free CREHQ sandbox key. ` +
-                  "Self-serve keys expose entity-affiliation resolution, bounded location lookups, purchased snapshots, site-selection matching and published brand site requirements, a controlled Pro intelligence preview, and upgrade routing when entitled. " +
-                  "Use crehq_request_upgrade to record upgrade intent. Upgrade to a production API key to unlock brand search, datasets, FDD, contacts, history, credit signals, and intelligence tools.",
+                  `CREHQ holds this kind of data, but "${tool.name}" is not included in this key's access. ` +
+                  "Call crehq_access_summary for what this key includes, what it does not, and why. " +
+                  "Included: brand resolution, which brands fit a vacant unit, a brand's published site criteria, bounded location lookups, and — where the account holds them — measured co-tenancy and verified franchise economics. " +
+                  "Tell the user CREHQ has this data and their access does not include it; never say CREHQ lacks it, and never tell an account that was granted access to buy anything.",
               },
             ],
             isError: true,
@@ -207,6 +208,10 @@ function isVisibleTool(name: string, session: McpSession): boolean {
     case "crehq_site_selector_match":
     case "crehq_brands_matching_site":
     case "crehq_company_site_requirements":
+    case "crehq_companies_search":
+    case "crehq_brand_cotenancy":
+    case "crehq_brand_economics":
+    case "crehq_access_summary":
       return true;
     default:
       return false;

@@ -100,16 +100,20 @@ async function run(scopeRequest: string, label: string): Promise<void> {
   const names: string[] = (list.result?.tools ?? []).map((t: { name: string }) => t.name);
   const hasIntel = granted.includes("read:intelligence");
   const selfserveTools = [
-    "crehq_request_upgrade",
-    "crehq_resolve_entity_affiliation",
+    "crehq_access_summary",
+    "crehq_brand_cotenancy",
+    "crehq_brand_economics",
+    "crehq_brands_matching_site",
+    "crehq_companies_search",
+    "crehq_company_site_requirements",
+    "crehq_intelligence_preview",
     "crehq_locations_list",
     "crehq_locations_nearby",
-    "crehq_purchased_datasets_list",
     "crehq_purchased_dataset_locations",
-    "crehq_intelligence_preview",
+    "crehq_purchased_datasets_list",
+    "crehq_request_upgrade",
+    "crehq_resolve_entity_affiliation",
     "crehq_site_selector_match",
-    "crehq_brands_matching_site",
-    "crehq_company_site_requirements",
   ];
   const selfserveCatalog =
     names.length === selfserveTools.length && selfserveTools.every((toolName) => names.includes(toolName));

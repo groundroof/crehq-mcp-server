@@ -29,6 +29,7 @@ const RAW_FULL_KEY = "crehq_live_raw_full_key_0003";
 const RAW_INVALID_KEY = "crehq_live_raw_invalid_key_0004";
 
 const SITE_TOOLS = ["crehq_site_selector_match", "crehq_brands_matching_site", "crehq_company_site_requirements"];
+const COHORT_TOOLS = ["crehq_companies_search", "crehq_brand_cotenancy", "crehq_brand_economics", "crehq_access_summary"];
 const SELFSERVE_CATALOG = [
   "crehq_request_upgrade",
   "crehq_resolve_entity_affiliation",
@@ -38,6 +39,7 @@ const SELFSERVE_CATALOG = [
   "crehq_purchased_dataset_locations",
   "crehq_intelligence_preview",
   ...SITE_TOOLS,
+  ...COHORT_TOOLS,
 ];
 
 let passed = 0;
@@ -306,7 +308,7 @@ async function testSignInHappyPathAndReplay(): Promise<void> {
 
   const list = await listToolNames(app, tok.access_token);
   check("mcp: selfserve session lists the 3 new site tools", list.status === 200 && SITE_TOOLS.every((n) => list.names.includes(n)));
-  check("mcp: selfserve catalog is exactly the 10 whitelisted tools", sameSet(list.names, SELFSERVE_CATALOG), `${list.names.length} tools`);
+  check("mcp: selfserve catalog is exactly the 14 whitelisted tools", sameSet(list.names, SELFSERVE_CATALOG), `${list.names.length} tools`);
 
   const callBefore = upstream.length;
   const result = await callTool(app, tok.access_token, "crehq_company_site_requirements", { company: "planet-fitness" });
@@ -549,7 +551,7 @@ async function testRawKeyBearer(): Promise<void> {
     "raw key: validated with the same /selfserve/usage probe",
     probes.length === 1 && probes[0].url.pathname.endsWith("/selfserve/usage") && probes[0].headers.get("x-api-key") === RAW_SELFSERVE_KEY,
   );
-  check("raw key: selfserve catalog incl. the 3 site tools", sameSet(first.names, SELFSERVE_CATALOG), `${first.names.length} tools`);
+  check("raw key: selfserve catalog incl. the site + cohort tools", sameSet(first.names, SELFSERVE_CATALOG), `${first.names.length} tools`);
 
   const hash = await sha256Hex(RAW_SELFSERVE_KEY);
   const cachePut = app.store.puts.find((p) => p.key.endsWith(hash));

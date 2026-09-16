@@ -335,7 +335,9 @@ export const TOOLS: ToolDef[] = [
       per_page: perPage,
     },
     handler: (c, a) =>
-      call(() => c.request("/companies/search", { query: { q: a.q as string, per_page: a.per_page as number } })),
+      c.apiSurface === "selfserve"
+        ? call(() => c.request("/selfserve/brand-resolve", { query: { q: a.q as string, limit: a.per_page as number } }))
+        : call(() => c.request("/companies/search", { query: { q: a.q as string, per_page: a.per_page as number } })),
   },
   {
     name: "crehq_company_get",
@@ -381,6 +383,52 @@ export const TOOLS: ToolDef[] = [
   // ========================================================================
   // SITE SELECTION  (CREHQ self-serve routes; visible on selfserve AND full keys)
   // ========================================================================
+  {
+    name: "crehq_brand_cotenancy",
+    requiredScope: SCOPE_BASIC,
+    description:
+      "What actually sits next to a brand: CREHQ's measured spatial adjacency across the brand's US estate. Returns neighbouring brands and venue classes with the share of the brand's locations that have them nearby, and a lift figure comparing this brand against others on the same neighbour. Use it to defend a tenant mix (\"Qdoba sits within 0.25mi of a Starbucks at 53% of its locations\"). This is adjacency, never a lease or a co-tenancy clause, and it does not prove causation.",
+    schema: {
+      company: z.string().describe("CREHQ brand slug or company_id. Resolve a name with crehq_companies_search first."),
+      band: z.enum(["0.10mi", "0.25mi"]).optional().describe("Radius band. Default 0.25mi."),
+      kind: z.enum(["brand", "venue_class"]).optional().describe("Limit to named brands, or to venue classes like grocery or fitness_center."),
+      limit: z.number().int().min(1).max(50).optional().describe("Neighbours to return (default 20)."),
+      include_noncommercial: z
+        .boolean()
+        .optional()
+        .describe("ATM networks, EV chargers, nonprofit-registry addresses and libraries are left out by default. Set true to include them."),
+    },
+    handler: (c, a) =>
+      call(() =>
+        c.request("/selfserve/cotenancy", {
+          query: {
+            company: String(a.company),
+            band: a.band as string,
+            kind: a.kind as string,
+            limit: a.limit as number,
+            include_noncommercial: a.include_noncommercial ? "1" : undefined,
+          },
+        }),
+      ),
+  },
+  {
+    name: "crehq_brand_economics",
+    requiredScope: SCOPE_BASIC,
+    description:
+      "A franchise brand's published costs to a franchisee — initial franchise fee, total investment range, royalty and ad-fund rates, liquid capital and net worth required — but ONLY figures CREHQ verified verbatim against the Franchise Disclosure Document it holds, each with the quoted sentence. A field comes back null with verified false when CREHQ has not checked it; report that as unverified rather than substituting a number from elsewhere. These are franchisor costs, not rent and not landlord income.",
+    schema: {
+      company: z.string().describe("CREHQ brand slug or company_id. Resolve a name with crehq_companies_search first."),
+    },
+    handler: (c, a) => call(() => c.request("/selfserve/brand-economics", { query: { company: String(a.company) } })),
+  },
+  {
+    name: "crehq_access_summary",
+    requiredScope: SCOPE_BASIC,
+    description:
+      "What THIS CREHQ key can and cannot reach, in plain terms: the access level, what is included, what CREHQ holds that this key does not include and why, and the row limits per brand and per month. Call this when a tool is refused, before telling the user CREHQ lacks the data — CREHQ may hold it while this key does not include it.",
+    schema: {},
+    handler: (c) => call(() => c.request("/selfserve/access-summary")),
+  },
   {
     name: "crehq_site_selector_match",
     requiredScope: SCOPE_BASIC,

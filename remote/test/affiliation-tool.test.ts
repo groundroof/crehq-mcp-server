@@ -26,17 +26,21 @@ assert.ok(listResponse && listResponse.result && typeof listResponse.result === 
 const listedTools = (listResponse.result as { tools?: Array<{ name: string; inputSchema: { properties: Record<string, unknown> } }> }).tools ?? [];
 const names = listedTools.map((tool) => tool.name).sort();
 assert.deepEqual(names, [
-  "crehq_brands_matching_site",
-  "crehq_company_site_requirements",
-  "crehq_intelligence_preview",
-  "crehq_locations_list",
-  "crehq_locations_nearby",
-  "crehq_purchased_dataset_locations",
-  "crehq_purchased_datasets_list",
-  "crehq_request_upgrade",
-  "crehq_resolve_entity_affiliation",
-  "crehq_site_selector_match",
-]);
+    "crehq_access_summary",
+    "crehq_brand_cotenancy",
+    "crehq_brand_economics",
+    "crehq_brands_matching_site",
+    "crehq_companies_search",
+    "crehq_company_site_requirements",
+    "crehq_intelligence_preview",
+    "crehq_locations_list",
+    "crehq_locations_nearby",
+    "crehq_purchased_dataset_locations",
+    "crehq_purchased_datasets_list",
+    "crehq_request_upgrade",
+    "crehq_resolve_entity_affiliation",
+    "crehq_site_selector_match",
+  ]);
 assert.equal(names.includes("crehq_company_get"), false, "full-only tools remain hidden from selfserve keys");
 assert.equal(names.includes("crehq_whitespace"), false, "premium intelligence tools remain hidden");
 
@@ -52,7 +56,7 @@ const blockedFullTool = callResult(
   ),
 );
 assert.equal(blockedFullTool.isError, true);
-assert.match(blockedFullTool.content?.[0]?.text ?? "", /not available with a free CREHQ sandbox key/i);
+assert.match(blockedFullTool.content?.[0]?.text ?? "", /is not included in this key/i);
 
 const advertised = listedTools.find((tool) => tool.name === "crehq_resolve_entity_affiliation");
 assert.ok(advertised);

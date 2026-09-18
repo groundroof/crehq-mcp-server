@@ -433,7 +433,7 @@ export const TOOLS: ToolDef[] = [
     name: "crehq_site_selector_match",
     requiredScope: SCOPE_BASIC,
     description:
-      "CREHQ's tenant-shortlist engine for a vacant unit. Describe the space (size, site type, state, category) and, optionally, what you measured at the site (AADT traffic, population and household income within a radius) and its co-tenants; it returns a ranked list of brands that could fit. It keeps two kinds of evidence apart: STATED fit, from what a brand PUBLISHES about the space it wants, and REVEALED fit, from percentiles over where the brand actually operates today across its current US estate. Coverage is uneven: many brands publish no requirements, and revealed percentiles exist only where CREHQ has the underlying location and context data. Every response carries measured coverage in `limits`, and the response `notes` explain how the criteria were applied. Read `limits` and `notes` before concluding a brand does not fit: a missing published value or thin revealed coverage is not evidence of a mismatch, and include_unknown=true keeps brands that lack evidence for a criterion. A shortlist entry is evidence for outreach, not confirmation that the brand wants this site. Use crehq_company_site_requirements to see one brand's published criteria and sources.",
+      "CREHQ's tenant-shortlist engine for a vacant unit. Describe the space (size, site type, state, category) and, optionally, what you measured at the site (AADT traffic, population and household income within a radius) and its co-tenants; it returns a ranked list of brands that could fit. It keeps two kinds of evidence apart: STATED fit, from what a brand PUBLISHES about the space it wants, and REVEALED fit, from percentiles over where the brand actually operates today across its current US estate. Coverage is uneven: many brands publish no requirements, and revealed percentiles exist only where CREHQ has the underlying location and context data. Every response carries measured coverage in `limits`, and the response `notes` explain how the criteria were applied. Read `limits` and `notes` before concluding a brand does not fit: a missing published value or thin revealed coverage is not evidence of a mismatch, and include_unknown=true keeps brands that lack evidence for a criterion. A shortlist entry is evidence for outreach, not confirmation that the brand wants this site. Use crehq_company_site_requirements to see one brand's published criteria and sources. Pass the site's lat and lng to learn, per brand, whether it ALREADY operates within market_radius miles (market_presence: in_market, locations_within_radius, nearest_miles); presence=absent turns the shortlist into brands NOT YET in that market, the usual question for a new development. Presence is a footprint fact from CREHQ's active US locations, never evidence that a brand wants the market.",
     schema: {
       sqft: z.number().int().positive().optional().describe("Size of the vacant unit in square feet."),
       site_type: z
@@ -445,6 +445,16 @@ export const TOOLS: ToolDef[] = [
         .describe(`Comma-separated site type(s) of the unit. Allowed: ${SITE_SELECTOR_SITE_TYPES.join(", ")}.`),
       category: z.string().trim().min(1).optional().describe("Optional brand category to shortlist within, e.g. 'restaurant'."),
       state: usStateCode.optional().describe("2-letter US state of the site, e.g. 'IN'."),
+      lat: z.number().min(-90).max(90).optional().describe("Site latitude in decimal degrees. Give lat AND lng to get market_presence on every brand."),
+      lng: z.number().min(-180).max(180).optional().describe("Site longitude in decimal degrees (negative across the US)."),
+      market_radius: z
+        .union([z.literal(1), z.literal(3), z.literal(5), z.literal(10), z.literal(25)])
+        .optional()
+        .describe("Straight-line radius in miles for the presence test: 1, 3, 5, 10 or 25 ONLY. Defaults to 10. Any other value is refused, never rounded."),
+      presence: z
+        .enum(["any", "absent", "present"])
+        .optional()
+        .describe("Needs lat and lng. absent = keep only brands with NO active US location within the radius ('not yet in this market'); present = only brands already there; any (default) = keep all and just report presence."),
       aadt_actual: nonNegativeInt.optional().describe("Annual average daily traffic (vehicles/day) you measured at the site."),
       population_actual: nonNegativeInt.optional().describe("Population you measured within `radius` miles of the site."),
       hhi_actual: nonNegativeInt.optional().describe("Household income (USD) you measured within `radius` miles of the site."),
@@ -480,6 +490,10 @@ export const TOOLS: ToolDef[] = [
             site_type: commaList(a.site_type),
             category: a.category as string,
             state: upperState(a.state),
+            lat: a.lat as number,
+            lng: a.lng as number,
+            market_radius: a.market_radius as number,
+            presence: a.presence as string,
             aadt_actual: a.aadt_actual as number,
             population_actual: a.population_actual as number,
             hhi_actual: a.hhi_actual as number,
@@ -500,7 +514,7 @@ export const TOOLS: ToolDef[] = [
     name: "crehq_brands_matching_site",
     requiredScope: SCOPE_BASIC,
     description:
-      "Match a described site (size, site type, traffic, population, income, co-tenants, state) against the site requirements CREHQ has recorded for brands, and return the brands that are compatible. Recorded requirements are partial: many brands have none, so a brand's absence from the results is not proof it would reject the site (include_unknown=true keeps brands with no recorded value for a criterion). For a full vacant-unit shortlist that separates published (stated) requirements from where brands actually operate (revealed) and reports coverage, prefer crehq_site_selector_match.",
+      "Match a described site (size, site type, traffic, population, income, co-tenants, state) against the site requirements CREHQ has recorded for brands, and return the brands that are compatible. Give the site's lat and lng to learn, per brand, whether it ALREADY operates within market_radius_miles (market_presence); presence=absent keeps only brands NOT YET in that market, a footprint fact and never evidence the brand wants the market. Recorded requirements are partial: many brands have none, so a brand's absence from the results is not proof it would reject the site (include_unknown=true keeps brands with no recorded value for a criterion). For a full vacant-unit shortlist that separates published (stated) requirements from where brands actually operate (revealed) and reports coverage, prefer crehq_site_selector_match.",
     schema: {
       sqft: z.number().int().positive().optional().describe("Size of the unit in square feet."),
       site_type: z.string().trim().min(1).optional().describe("Site type of the unit, e.g. 'endcap' or 'freestanding'."),
@@ -508,6 +522,16 @@ export const TOOLS: ToolDef[] = [
       population: nonNegativeInt.optional().describe("Population within radius_miles of the site."),
       hhi: nonNegativeInt.optional().describe("Household income (USD) within radius_miles of the site."),
       radius_miles: z.number().positive().optional().describe("Radius in miles for the population/income values."),
+      lat: z.number().min(-90).max(90).optional().describe("Site latitude in decimal degrees. Give lat AND lng to get market_presence on every brand."),
+      lng: z.number().min(-180).max(180).optional().describe("Site longitude in decimal degrees (negative across the US)."),
+      market_radius_miles: z
+        .union([z.literal(1), z.literal(3), z.literal(5), z.literal(10), z.literal(25)])
+        .optional()
+        .describe("Straight-line radius in miles for the presence test: 1, 3, 5, 10 or 25 ONLY. Defaults to 10. Any other value is refused, never rounded."),
+      presence: z
+        .enum(["any", "absent", "present"])
+        .optional()
+        .describe("Needs lat and lng. absent = keep only brands with NO active US location within the radius ('not yet in this market'); present = only brands already there; any (default) = keep all and report presence."),
       cotenants: z.string().trim().min(1).optional().describe("Comma-separated CREHQ brand slugs of existing co-tenants."),
       category: z.string().trim().min(1).optional().describe("Optional brand category filter."),
       state: usStateCode.optional().describe("2-letter US state of the site."),
@@ -534,6 +558,10 @@ export const TOOLS: ToolDef[] = [
             cotenants: commaList(a.cotenants),
             category: a.category as string,
             state: upperState(a.state),
+            lat: a.lat as number,
+            lng: a.lng as number,
+            market_radius_miles: a.market_radius_miles as number,
+            presence: a.presence as string,
             limit: a.limit as number,
             include_unknown: a.include_unknown as boolean,
             require_envelope_fit: a.require_envelope_fit as boolean,

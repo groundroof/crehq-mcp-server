@@ -768,6 +768,42 @@ export const TOOLS: ToolDef[] = [
     handler: (c, a) =>
       call(() => c.request("/selfserve/company-requirements", { query: { company: String(a.company) } })),
   },
+  {
+    name: "crehq_brand_investment",
+    requiredScope: SCOPE_BASIC,
+    description:
+      "A franchise brand's estimated initial investment table (FDD Item 7) as printed in its latest Franchise Disclosure Document: the total range plus each line item (franchise fee, rent and deposits, build-out, equipment, signage, inventory, working capital...) with low/high dollars, when it is due and who is paid. Only figures CREHQ matched verbatim against the filing text are returned; line_items_status says whether the rows reconciled to the printed total. These are the franchisor's published costs to a franchisee, not rent. Needs a Researcher Pass on the key's account (402 otherwise). Resolve a name with crehq_companies_search first.",
+    schema: {
+      company: z
+        .union([z.string().trim().min(1).max(200), z.number().int().positive()])
+        .describe("CREHQ brand slug (e.g. 'wingstop') or numeric company id."),
+    },
+    handler: (c, a) =>
+      call(() => c.request("/selfserve/brand-investment", { query: { company: String(a.company) } })),
+  },
+  {
+    name: "crehq_brand_expansion",
+    requiredScope: SCOPE_BASIC,
+    description:
+      "Where a franchise brand is growing, by US state, from its latest Franchise Disclosure Document (FDD Item 20): franchised outlets at the start and end of the latest fiscal year with openings, terminations, non-renewals, reacquisitions and other closures per state (Table 3), plus agreements signed but not yet open and the franchisor's PROJECTED new franchised and company-owned openings for the next fiscal year per state (Table 5). Pass state (two-letter code) to get one state's row, e.g. 'IN' for brands planning Indiana openings. Every row shown was matched verbatim against the filing; a state that is absent was not listed or did not verify, which is not zero. Projected openings are stated plans, not commitments. Needs a Researcher Pass on the key's account (402 otherwise).",
+    schema: {
+      company: z
+        .union([z.string().trim().min(1).max(200), z.number().int().positive()])
+        .describe("CREHQ brand slug or numeric company id. Resolve a name with crehq_companies_search first."),
+      state: z
+        .string()
+        .trim()
+        .length(2)
+        .optional()
+        .describe("Optional two-letter US state code to return just that state's row (e.g. 'IN')."),
+    },
+    handler: (c, a) =>
+      call(() =>
+        c.request("/selfserve/brand-expansion", {
+          query: { company: String(a.company), state: a.state ? String(a.state).toUpperCase() : undefined },
+        }),
+      ),
+  },
 
   // ========================================================================
   // LOCATIONS

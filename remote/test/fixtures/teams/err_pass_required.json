@@ -1,0 +1,13 @@
+{
+  "status": 403,
+  "headers": {
+    "content-type": "application/json; charset=UTF-8",
+    "cache-control": "private, no-store"
+  },
+  "body": {
+    "error": "pass_required",
+    "message": "Team workspaces need a Researcher Pass or an active competition grant on this CREHQ account.",
+    "user_id": 20308,
+    "can_use": false
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "status": 401,
+  "headers": {
+    "content-type": "application/json; charset=UTF-8",
+    "cache-control": "private, no-store"
+  },
+  "body": {
+    "code": "missing_api_key",
+    "message": "API key required. Pass via Authorization: Bearer <key> or X-API-Key header.",
+    "data": {
+      "status": 401
+    }
+  }
+}

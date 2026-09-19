@@ -82,6 +82,9 @@ jobs:
       - name: Affiliation tool contract test
         run: node dist/test/affiliation-tool.test.js
 
+      - name: Team workspace tools test
+        run: node dist/test/teams-tools.test.js
+
       - name: OAuth flow test
         run: npm run test:oauth
 

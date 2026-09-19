@@ -1,0 +1,40 @@
+{
+  "status": 201,
+  "headers": {
+    "content-type": "application/json; charset=UTF-8",
+    "cache-control": "private, no-store"
+  },
+  "body": {
+    "site": {
+      "id": 4,
+      "team_id": 4,
+      "name": "API test site",
+      "address": "123 Main St",
+      "city": "West Lafayette",
+      "state": "IN",
+      "postal_code": "47906",
+      "lat": 40.4259,
+      "lng": -86.9081,
+      "suites": [
+        {
+          "name": "A",
+          "sqft": 1800
+        },
+        {
+          "name": "B",
+          "sqft": 2400
+        }
+      ],
+      "inputs": {
+        "aadt": 24000,
+        "population": 52000,
+        "hhi": 61000,
+        "radius_mi": 3
+      },
+      "created_by": 21678,
+      "created_at": "2026-09-19 00:48:14",
+      "updated_at": "2026-09-19 00:48:14"
+    },
+    "created": true
+  }
+}

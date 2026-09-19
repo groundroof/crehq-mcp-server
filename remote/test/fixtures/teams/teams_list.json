@@ -1,0 +1,88 @@
+{
+  "status": 200,
+  "headers": {
+    "content-type": "application/json; charset=UTF-8",
+    "cache-control": "private, no-store"
+  },
+  "body": {
+    "teams": [
+      {
+        "id": 3,
+        "slug": "crehq-test-2026",
+        "name": "CREHQ internal cohort test",
+        "kind": "org",
+        "role": "member",
+        "via_org_id": null,
+        "parent": null,
+        "cohort_slug": "crehq-test-2026",
+        "status": "active",
+        "window": {
+          "starts_at": "2026-09-15 05:00:00",
+          "ends_at": "2026-10-15 05:00:00",
+          "open": true
+        },
+        "counts": {
+          "members": 2,
+          "lists": 0,
+          "items": 0,
+          "sites": 0,
+          "notes": 0
+        },
+        "url": "https://crehq.com/workspace/crehq-test-2026/"
+      },
+      {
+        "id": 5,
+        "slug": "demo-user-21678",
+        "name": "Demo workspace — Cohort TestOne",
+        "kind": "team",
+        "role": "owner",
+        "via_org_id": null,
+        "parent": null,
+        "cohort_slug": null,
+        "status": "active",
+        "window": {
+          "starts_at": null,
+          "ends_at": null,
+          "open": true
+        },
+        "counts": {
+          "members": 1,
+          "lists": 2,
+          "items": 7,
+          "sites": 1,
+          "notes": 2
+        },
+        "url": "https://crehq.com/workspace/demo-user-21678/"
+      },
+      {
+        "id": 4,
+        "slug": "crehq-test-2026-qa-team-0",
+        "name": "QA — Team 0",
+        "kind": "team",
+        "role": "member",
+        "via_org_id": null,
+        "parent": 3,
+        "cohort_slug": "crehq-test-2026",
+        "status": "active",
+        "window": {
+          "starts_at": "2026-09-15 05:00:00",
+          "ends_at": "2026-10-15 05:00:00",
+          "open": true
+        },
+        "counts": {
+          "members": 2,
+          "lists": 0,
+          "items": 0,
+          "sites": 0,
+          "notes": 0
+        },
+        "url": "https://crehq.com/workspace/crehq-test-2026-qa-team-0/"
+      }
+    ],
+    "count": 3,
+    "notes": [
+      "These are the account's own team workspaces: shared shortlists, compare boards, saved sites and notes written by team members. They are not CREHQ data.",
+      "Use the team id or slug in every other team call. Nothing here reaches another team's workspace."
+    ]
+  }
+}

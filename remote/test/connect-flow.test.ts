@@ -30,6 +30,16 @@ const RAW_INVALID_KEY = "crehq_live_raw_invalid_key_0004";
 
 const SITE_TOOLS = ["crehq_site_selector_match", "crehq_brands_matching_site", "crehq_company_site_requirements"];
 const COHORT_TOOLS = ["crehq_companies_search", "crehq_brand_cotenancy", "crehq_brand_economics", "crehq_access_summary"];
+const TEAM_TOOLS = [
+  "crehq_team_list",
+  "crehq_team_items",
+  "crehq_team_item_add",
+  "crehq_team_item_remove",
+  "crehq_team_note_add",
+  "crehq_team_notes",
+  "crehq_team_site_save",
+  "crehq_team_site_runs",
+];
 const SELFSERVE_CATALOG = [
   "crehq_request_upgrade",
   "crehq_resolve_entity_affiliation",
@@ -40,6 +50,7 @@ const SELFSERVE_CATALOG = [
   "crehq_intelligence_preview",
   ...SITE_TOOLS,
   ...COHORT_TOOLS,
+  ...TEAM_TOOLS,
 ];
 
 let passed = 0;
@@ -308,7 +319,7 @@ async function testSignInHappyPathAndReplay(): Promise<void> {
 
   const list = await listToolNames(app, tok.access_token);
   check("mcp: selfserve session lists the 3 new site tools", list.status === 200 && SITE_TOOLS.every((n) => list.names.includes(n)));
-  check("mcp: selfserve catalog is exactly the 14 whitelisted tools", sameSet(list.names, SELFSERVE_CATALOG), `${list.names.length} tools`);
+  check("mcp: selfserve catalog is exactly the 22 whitelisted tools", sameSet(list.names, SELFSERVE_CATALOG), `${list.names.length} tools`);
 
   const callBefore = upstream.length;
   const result = await callTool(app, tok.access_token, "crehq_company_site_requirements", { company: "planet-fitness" });

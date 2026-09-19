@@ -1,0 +1,17 @@
+{
+  "status": 403,
+  "headers": {
+    "content-type": "application/json; charset=UTF-8",
+    "cache-control": "private, no-store"
+  },
+  "body": {
+    "error": "forbidden",
+    "message": "This account is not a member of that team, or the team is closed.",
+    "team": {
+      "id": 2,
+      "slug": "purdue-fall-2026",
+      "name": "Purdue fall 2026 case competitions"
+    },
+    "cap": "view"
+  }
+}

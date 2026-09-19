@@ -1,0 +1,54 @@
+{
+  "status": 404,
+  "headers": {
+    "content-type": "application/json; charset=UTF-8",
+    "cache-control": "private, no-store"
+  },
+  "body": {
+    "error": "brand_not_found",
+    "message": "No published CREHQ brand is exactly \"Jersey\". Resolve the name with crehq_companies_search (GET /selfserve/brand-resolve) and pass its slug; never guess.",
+    "brand": "Jersey",
+    "did_you_mean": [
+      {
+        "slug": "jersey-mikes",
+        "name": "Jersey Mikes"
+      },
+      {
+        "slug": "imls-lib-nj0149",
+        "name": "JERSEY CITY PUBLIC LIBRARY"
+      },
+      {
+        "slug": "jersey-shore",
+        "name": "Jersey Shore"
+      },
+      {
+        "slug": "jersey-state-bank",
+        "name": "Jersey State Bank"
+      },
+      {
+        "slug": "jersey-central",
+        "name": "Jersey Central"
+      },
+      {
+        "slug": "imls-lib-pa0250",
+        "name": "JERSEY SHORE PUBLIC LIBRARY"
+      },
+      {
+        "slug": "public-libraries-new-jersey-fy2024",
+        "name": "New Jersey Public Library Outlets FY2024"
+      },
+      {
+        "slug": "credit-union-of-new-jersey-a",
+        "name": "Credit Union of NEW Jersey, A"
+      },
+      {
+        "slug": "north-jersey",
+        "name": "North Jersey"
+      },
+      {
+        "slug": "new-jersey-law-and-public-safety",
+        "name": "NEW Jersey LAW AND Public Safety"
+      }
+    ]
+  }
+}

@@ -103,6 +103,8 @@ async function run(scopeRequest: string, label: string): Promise<void> {
     "crehq_access_summary",
     "crehq_brand_cotenancy",
     "crehq_brand_economics",
+    "crehq_brand_expansion",
+    "crehq_brand_investment",
     "crehq_brands_matching_site",
     "crehq_companies_search",
     "crehq_company_site_requirements",

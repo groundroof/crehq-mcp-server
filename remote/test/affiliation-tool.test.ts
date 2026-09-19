@@ -40,6 +40,14 @@ assert.deepEqual(names, [
     "crehq_request_upgrade",
     "crehq_resolve_entity_affiliation",
     "crehq_site_selector_match",
+    "crehq_team_item_add",
+    "crehq_team_item_remove",
+    "crehq_team_items",
+    "crehq_team_list",
+    "crehq_team_note_add",
+    "crehq_team_notes",
+    "crehq_team_site_runs",
+    "crehq_team_site_save",
   ]);
 assert.equal(names.includes("crehq_company_get"), false, "full-only tools remain hidden from selfserve keys");
 assert.equal(names.includes("crehq_whitespace"), false, "premium intelligence tools remain hidden");

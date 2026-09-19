@@ -1,0 +1,40 @@
+{
+  "status": 200,
+  "headers": {
+    "content-type": "application/json; charset=UTF-8",
+    "cache-control": "private, no-store"
+  },
+  "body": {
+    "team": {
+      "id": 4,
+      "slug": "crehq-test-2026-qa-team-0",
+      "name": "QA — Team 0"
+    },
+    "list": null,
+    "scope": "all",
+    "items": [
+      {
+        "id": 34,
+        "team_id": 4,
+        "list_id": null,
+        "item_type": "brand",
+        "ref_id": 26289,
+        "ref_key": "jersey-mikes",
+        "name": "Jersey Mikes",
+        "position": 1,
+        "added_by": 21678,
+        "created_at": "2026-09-19 00:48:10",
+        "brand": {
+          "id": 26289,
+          "slug": "jersey-mikes",
+          "name": "Jersey Mikes",
+          "url": "https://crehq.com/companies/jersey-mikes/",
+          "published": true
+        }
+      }
+    ],
+    "count": 1,
+    "total": 1,
+    "truncated": false
+  }
+}

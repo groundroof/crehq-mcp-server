@@ -96,7 +96,12 @@ export async function handleRpc(
           "the read:intelligence scope. Free sandbox location results are footprint-only; if a user asks for " +
           "credit signals, ownership/rating/capital-structure, site-selection requirements, contacts, FDD, " +
           "or other premium data and the tool is unavailable, use crehq_request_upgrade instead of saying " +
-          "CREHQ does not have it.",
+          "CREHQ does not have it. " +
+          "Team workspaces: call crehq_team_list first to learn which teams this account belongs to, then pass that " +
+          "team's id or slug to the other crehq_team_* tools (shortlist items, notes, saved sites, saved site-selector runs). " +
+          "What those tools return is the team's own working material written by its members, not CREHQ data, and they " +
+          "never expose another team's workspace. Never invent a brand when adding an item or a note: resolve the name with " +
+          "crehq_companies_search and pass the slug; if the API answers brand_not_found with did_you_mean, ask the user.",
       });
 
     case "notifications/initialized":
@@ -134,7 +139,7 @@ export async function handleRpc(
                 text:
                   `CREHQ holds this kind of data, but "${tool.name}" is not included in this key's access. ` +
                   "Call crehq_access_summary for what this key includes, what it does not, and why. " +
-                  "Included: brand resolution, which brands fit a vacant unit, a brand's published site criteria, bounded location lookups, and — where the account holds them — measured co-tenancy and verified franchise economics. " +
+                  "Included: brand resolution, which brands fit a vacant unit, a brand's published site criteria, bounded location lookups, the account's own team workspaces (crehq_team_list), and — where the account holds them — measured co-tenancy and verified franchise economics. " +
                   "Tell the user CREHQ has this data and their access does not include it; never say CREHQ lacks it, and never tell an account that was granted access to buy anything.",
               },
             ],
@@ -212,6 +217,14 @@ function isVisibleTool(name: string, session: McpSession): boolean {
     case "crehq_brand_cotenancy":
     case "crehq_brand_economics":
     case "crehq_access_summary":
+    case "crehq_team_list":
+    case "crehq_team_items":
+    case "crehq_team_item_add":
+    case "crehq_team_item_remove":
+    case "crehq_team_note_add":
+    case "crehq_team_notes":
+    case "crehq_team_site_save":
+    case "crehq_team_site_runs":
       return true;
     default:
       return false;

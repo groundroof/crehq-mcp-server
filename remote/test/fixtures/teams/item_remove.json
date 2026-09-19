@@ -1,0 +1,15 @@
+{
+  "status": 200,
+  "headers": {
+    "content-type": "application/json; charset=UTF-8",
+    "cache-control": "private, no-store"
+  },
+  "body": {
+    "deleted": true,
+    "item_id": 34,
+    "item_type": "brand",
+    "ref_id": 26289,
+    "ref_key": "jersey-mikes",
+    "list_id": null
+  }
+}

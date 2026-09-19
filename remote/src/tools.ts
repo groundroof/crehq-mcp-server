@@ -86,6 +86,14 @@ const siteTypeListPattern = new RegExp(`^\\s*(?:${siteTypeAlternation})\\s*(?:,\
 const usStateCode = z.string().trim().regex(/^[A-Za-z]{2}$/, "Use a 2-letter US state code, e.g. IN.");
 const nonNegativeInt = z.number().int().min(0);
 
+// --- team workspaces (crehq_team_*) ---------------------------------------
+/** Team id or slug, as crehq_team_list reports it. */
+const teamRef = z.string().trim().min(1).max(191).describe("Team id or slug from crehq_team_list.");
+/** /selfserve/teams/{team}{rest} with the team reference URL-encoded. */
+function teamPath(team: unknown, rest = ""): string {
+  return `/selfserve/teams/${encodeURIComponent(String(team).trim())}${rest}`;
+}
+
 /** Normalize "a, b ,c" to "a,b,c"; undefined when empty. */
 function commaList(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
@@ -428,6 +436,184 @@ export const TOOLS: ToolDef[] = [
       "What THIS CREHQ key can and cannot reach, in plain terms: the access level, what is included, what CREHQ holds that this key does not include and why, and the row limits per brand and per month. Call this when a tool is refused, before telling the user CREHQ lacks the data — CREHQ may hold it while this key does not include it.",
     schema: {},
     handler: (c) => call(() => c.request("/selfserve/access-summary")),
+  },
+  // ========================================================================
+  // TEAM WORKSPACES — the team's OWN shortlists, notes and saved sites.
+  // These call /selfserve/teams/... (crehq-teams-api.php). They hold what the
+  // team's members wrote, never CREHQ data, and the API answers only for teams
+  // the key's account belongs to. Brands are never guessed: the API refuses a
+  // name that is not an exact match and returns did_you_mean instead.
+  // ========================================================================
+  {
+    name: "crehq_team_list",
+    requiredScope: SCOPE_BASIC,
+    description:
+      "Call this FIRST before any other crehq_team_* tool: the team workspaces this CREHQ account belongs to, with id, slug, role, window and counts. A team workspace holds the team's own shortlists, compare boards, saved sites and notes written by its members (not CREHQ data), and nothing here reaches another team's workspace.",
+    schema: {},
+    handler: (c) => call(() => c.request("/selfserve/teams")),
+  },
+  {
+    name: "crehq_team_items",
+    requiredScope: SCOPE_BASIC,
+    description:
+      "The brands and sites on a team's shortlist or one of its lists (its own picks, not CREHQ data; nothing from other teams). Each brand item carries the CREHQ id, slug and name to pass to the other tools.",
+    schema: {
+      team: teamRef,
+      list_id: z
+        .number()
+        .int()
+        .min(0)
+        .optional()
+        .describe("A list id from crehq_team_list / the team's lists, or 0 for the unfiled shortlist only. Omit for every item on the team."),
+      item_type: z.enum(["brand", "site"]).optional().describe("Only brands or only sites."),
+    },
+    handler: (c, a) =>
+      call(() => c.request(teamPath(a.team, "/items"), { query: { list_id: a.list_id as number, item_type: a.item_type as string } })),
+  },
+  {
+    name: "crehq_team_item_add",
+    requiredScope: SCOPE_BASIC,
+    description:
+      "Add a CREHQ brand to a team's own shortlist (or one of its lists) — the team's own list, not CREHQ data, never another team's; idempotent, the same brand twice returns the existing item. Pass the brand's slug or company_id (an exact brand name also works) and never invent one: when unsure, resolve it with crehq_companies_search first, and if the API answers brand_not_found with did_you_mean, ask the user rather than picking a suggestion silently.",
+    schema: {
+      team: teamRef,
+      brand: z
+        .string()
+        .trim()
+        .min(1)
+        .describe("CREHQ brand slug (preferred) or company_id, or the EXACT brand name. Partial names are refused with did_you_mean."),
+      list_id: z.number().int().positive().optional().describe("Add to this list (shortlist or compare board); omit for the team's unfiled shortlist."),
+    },
+    handler: (c, a) =>
+      call(() =>
+        c.request(teamPath(a.team, "/items"), {
+          method: "POST",
+          body: { item_type: "brand", ref: String(a.brand).trim(), list_id: a.list_id as number | undefined },
+        }),
+      ),
+  },
+  {
+    name: "crehq_team_item_remove",
+    requiredScope: SCOPE_BASIC,
+    description:
+      "Remove one item from a team's own shortlist or list by its item id (from crehq_team_items). This changes only the team's own list, not CREHQ data, and never another team's.",
+    schema: {
+      team: teamRef,
+      item_id: z.number().int().positive().describe("The item id from crehq_team_items (not the brand's company_id)."),
+    },
+    handler: (c, a) => call(() => c.request(teamPath(a.team, `/items/${Number(a.item_id)}`), { method: "DELETE" })),
+  },
+  {
+    name: "crehq_team_note_add",
+    requiredScope: SCOPE_BASIC,
+    description:
+      "Write a note in a team's workspace on a brand, a saved site, a list or the team itself; @Name mentions a team member. Notes are the team's own working notes (visible to its members and staff, never to another team), not CREHQ data. For a brand target pass the slug or company_id — never a guessed name — and put what the note rests on (tool names, URLs, figures) in evidence.",
+    schema: {
+      team: teamRef,
+      target_type: z.enum(["brand", "site", "list", "team"]).describe("What the note is about."),
+      target: z
+        .string()
+        .trim()
+        .optional()
+        .describe("brand: CREHQ slug / company_id / exact brand name; site or list: its id; team: omit."),
+      body: z.string().trim().min(1).max(20000).describe("The note text (plain text; @Name mentions a team member)."),
+      evidence: z
+        .record(z.unknown())
+        .optional()
+        .describe("Optional JSON object with what the note rests on: tool names, URLs, figures, run ids."),
+    },
+    handler: (c, a) =>
+      call(() =>
+        c.request(teamPath(a.team, "/notes"), {
+          method: "POST",
+          body: {
+            target_type: a.target_type,
+            target_id: typeof a.target === "string" && a.target.trim() ? a.target.trim() : undefined,
+            body: a.body,
+            evidence: a.evidence,
+          },
+        }),
+      ),
+  },
+  {
+    name: "crehq_team_notes",
+    requiredScope: SCOPE_BASIC,
+    description:
+      "Read a team's notes, optionally only those on one brand, site, list or the team. They are the team members' own working notes (may be wrong or out of date), not CREHQ data, and never another team's.",
+    schema: {
+      team: teamRef,
+      target_type: z.enum(["brand", "site", "list", "team"]).optional().describe("Limit to notes on this kind of target."),
+      target: z.string().trim().optional().describe("With target_type: brand slug / company_id, site id or list id."),
+      limit: z.number().int().min(1).max(200).optional().describe("Notes to return, newest first (default 100)."),
+    },
+    handler: (c, a) =>
+      call(() =>
+        c.request(teamPath(a.team, "/notes"), {
+          query: { target_type: a.target_type as string, target_id: a.target as string, limit: a.limit as number },
+        }),
+      ),
+  },
+  {
+    name: "crehq_team_site_save",
+    requiredScope: SCOPE_BASIC,
+    description:
+      "Save (or, with id, update) a site the team is evaluating — name, address, coordinates, suites and the traffic/population/income the team measured — in the team's own workspace so members and the site selector can reuse it. It stores the team's own inputs, not CREHQ data, and never another team's site.",
+    schema: {
+      team: teamRef,
+      id: z.number().int().positive().optional().describe("Existing site id to update; omit to create."),
+      name: z.string().trim().max(191).optional().describe("Site label, e.g. 'Sagamore Pkwy endcap'."),
+      address: z.string().trim().max(255).optional(),
+      city: z.string().trim().max(64).optional(),
+      state: usStateCode.optional().describe("2-letter US state code."),
+      postal_code: z.string().trim().max(64).optional(),
+      lat: z.number().min(-90).max(90).optional(),
+      lng: z.number().min(-180).max(180).optional(),
+      suites: z
+        .array(z.object({ name: z.string().trim().min(1).max(64), sqft: z.number().int().positive().optional() }))
+        .max(100)
+        .optional()
+        .describe("Available suites, e.g. [{name:'A', sqft:1800}]."),
+      inputs: z
+        .object({
+          aadt: nonNegativeInt.optional().describe("Annual average daily traffic measured at the site."),
+          population: nonNegativeInt.optional().describe("Population within radius_mi."),
+          hhi: nonNegativeInt.optional().describe("Household income (USD) within radius_mi."),
+          radius_mi: z.number().positive().optional().describe("Radius in miles the population/income cover."),
+        })
+        .optional()
+        .describe("What the team measured at the site, for crehq_site_selector_match."),
+    },
+    handler: (c, a) =>
+      call(() =>
+        c.request(teamPath(a.team, "/sites"), {
+          method: "POST",
+          body: {
+            id: a.id,
+            name: a.name,
+            address: a.address,
+            city: a.city,
+            state: upperState(a.state),
+            postal_code: a.postal_code,
+            lat: a.lat,
+            lng: a.lng,
+            suites: a.suites,
+            inputs: a.inputs,
+          },
+        }),
+      ),
+  },
+  {
+    name: "crehq_team_site_runs",
+    requiredScope: SCOPE_BASIC,
+    description:
+      "The site-selector runs a team saved for one of its own sites (site id from crehq_team_list / crehq_team_items), newest first, each with the parameters used and a snapshot of the result at that time. These are the team's own saved snapshots (never another team's), not CREHQ data and not a live answer: re-run crehq_site_selector_match for current results.",
+    schema: {
+      team: teamRef,
+      site_id: z.number().int().positive().describe("The team's site id."),
+      limit: z.number().int().min(1).max(200).optional().describe("Runs to return (default 20)."),
+    },
+    handler: (c, a) =>
+      call(() => c.request(teamPath(a.team, `/sites/${Number(a.site_id)}/runs`), { query: { limit: a.limit as number } })),
   },
   {
     name: "crehq_site_selector_match",
@@ -1165,6 +1351,10 @@ function zodToJson(def: ZodTypeAny): Record<string, unknown> {
       return base({ type: "string", enum: inner.values });
     case "ZodArray":
       return base({ type: "array", items: zodToJson(inner.type as ZodTypeAny) });
+    case "ZodObject":
+      return base(toJsonSchema((def as z.ZodObject<ZodRawShape>).shape));
+    case "ZodRecord":
+      return base({ type: "object" });
     case "ZodUnion": {
       const opts = (inner.options ?? []).map((o) => zodToJson(o));
       const types = Array.from(new Set(opts.map((o) => o.type).filter(Boolean)));

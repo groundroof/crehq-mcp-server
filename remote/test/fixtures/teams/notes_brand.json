@@ -1,0 +1,44 @@
+{
+  "status": 200,
+  "headers": {
+    "content-type": "application/json; charset=UTF-8",
+    "cache-control": "private, no-store"
+  },
+  "body": {
+    "team": {
+      "id": 4,
+      "slug": "crehq-test-2026-qa-team-0",
+      "name": "QA — Team 0"
+    },
+    "target_type": "brand",
+    "target_id": 26289,
+    "notes": [
+      {
+        "id": 8,
+        "team_id": 4,
+        "target_type": "brand",
+        "target_id": 26289,
+        "body": "Strong fit for suite A (edited via API).",
+        "evidence": {
+          "source": "crehq_brand_economics",
+          "url": "https://crehq.com/companies/jersey-mikes/"
+        },
+        "mentions": [],
+        "author_id": 21678,
+        "author_name": "Cohort TestOne",
+        "created_at": "2026-09-19 00:48:13",
+        "updated_at": "2026-09-19 00:48:13",
+        "brand": {
+          "id": 26289,
+          "slug": "jersey-mikes",
+          "name": "Jersey Mikes",
+          "url": "https://crehq.com/companies/jersey-mikes/"
+        }
+      }
+    ],
+    "count": 1,
+    "limit": 100,
+    "offset": 0,
+    "notes_about": "Notes are written by this team's members. They are the team's own working notes, not CREHQ data, and may be wrong or out of date."
+  }
+}

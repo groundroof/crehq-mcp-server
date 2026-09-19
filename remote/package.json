@@ -10,10 +10,10 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "npm run build && node dist/test/affiliation-tool.test.js && node dist/test/selfserve-guidance.test.js && node dist/test/full-flow.test.js",
+    "test": "npm run build && node dist/test/affiliation-tool.test.js && node dist/test/selfserve-guidance.test.js && node dist/test/teams-tools.test.js && node dist/test/full-flow.test.js",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
-    "dev": "npm run build && node dist/dev-server.js",
+    "dev": "npm run build && node dist/src/dev-server.js",
     "dev:wrangler": "wrangler dev",
     "deploy": "wrangler deploy",
     "test:oauth": "npm run build && node dist/test/oauth-flow.test.js && node dist/test/connect-flow.test.js"

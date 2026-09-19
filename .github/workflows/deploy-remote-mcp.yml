@@ -48,6 +48,9 @@ jobs:
       - name: Self-serve guidance test
         run: node dist/test/selfserve-guidance.test.js
 
+      - name: Team workspace tools test
+        run: node dist/test/teams-tools.test.js
+
       - name: OAuth flow test
         run: npm run test:oauth
 

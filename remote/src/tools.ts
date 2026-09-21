@@ -308,7 +308,7 @@ export const TOOLS: ToolDef[] = [
     name: "crehq_companies_list",
     requiredScope: SCOPE_BASIC,
     description:
-      "List franchise & multi-unit brands (companies) tracked in CREHQ's canonical, multi-source government-verified location database — restaurants, retail, banks, auto dealers, healthcare, hotels, EV charging and more. Filter by category or expansion status to discover brands actively opening or closing units. Each record links to verified store counts, FDD financials, real-estate criteria, and decision-maker contacts. Paginated.",
+      "List franchise & multi-unit brands (companies) tracked in CREHQ's canonical, multi-source verified location database (government records, franchise filings and brand-published data) — restaurants, retail, banks, auto dealers, healthcare, hotels, EV charging and more. Filter by category or expansion status to discover brands actively opening or closing units. Each record links to verified store counts, FDD financials, real-estate criteria, and decision-maker contacts. Paginated.",
     schema: {
       category: z
         .string()
@@ -997,7 +997,7 @@ export const TOOLS: ToolDef[] = [
     name: "crehq_locations_nearby",
     requiredScope: SCOPE_BASIC,
     description:
-      "Radius search: find all tracked locations within N miles of a lat/lng point. Powers trade-area analysis, competitor mapping, and 'what's near this address' questions. Returns distance-sorted, government-verified storefronts across every vertical CREHQ covers. " +
+      "Radius search: find all tracked locations within N miles of a lat/lng point. Powers trade-area analysis, competitor mapping, and 'what's near this address' questions. Returns distance-sorted storefronts verified against government records and brand-published data, across every vertical CREHQ covers. " +
       selfServeGuidanceNote,
     schema: {
       lat: z.number().describe("Latitude (decimal degrees)."),
@@ -1155,7 +1155,7 @@ export const TOOLS: ToolDef[] = [
     name: "crehq_whitespace",
     requiredScope: SCOPE_INTEL,
     description:
-      "PREMIUM INTELLIGENCE — whitespace analysis: postal codes/markets where a brand's competitors are present and performing but the brand itself is ABSENT. The ranked, data-driven shortlist of where a chain should expand next. Built on CREHQ's full multi-vertical, government-verified footprint. (Intel & Enterprise tiers.)",
+      "PREMIUM INTELLIGENCE — whitespace analysis: postal codes/markets where a brand's competitors are present and performing but the brand itself is ABSENT. The ranked, data-driven shortlist of where a chain should expand next. Built on CREHQ's full multi-vertical footprint, verified against government records. (Intel & Enterprise tiers.)",
     schema: {
       company_id: z.union([z.string(), z.number()]).describe("CREHQ company id to analyze."),
       country: z.string().optional().describe("ISO country code (default 'US')."),

@@ -200,19 +200,27 @@ export function errorGuidanceLines(body: unknown): string[] {
 export function hintForCode(body: unknown): string | undefined {
   if (!isObj(body)) return undefined;
   switch (errorCode(body)) {
+    case "terms_not_accepted":
+      return "Sign in to CREHQ and accept the current competition terms, then retry. This is an account setup step; do not offer an upgrade or checkout.";
+    case "pass_required":
+    case "researcher_pass_required":
+      return "Check the account's CREHQ access and confirm the connector is linked to the CREHQ account with the Researcher Pass or competition grant. Reconnect the correct account if needed; do not ask competition students to buy their granted access.";
+    case "team_not_found":
+    case "forbidden":
+      return "Select a team listed for this account and check its membership role. Team membership and role restrictions are not resolved by purchasing an upgrade.";
     case "row_budget_exhausted":
       return (
         "Rows per brand are limited monthly on this key, and the budget in row_budget is used up. " +
         "Tell the user; do not retry with other filters, radii or pages (each one counts against the budget). " +
-        "Check crehq_access_summary. For competition access, use included aggregate tools where available or explain the reset; do not ask students to purchase their grant. Other accounts can consider full_dataset or upgrade_url."
+        "Check the account's CREHQ access. For competition access, use included aggregate tools where available or explain the reset; do not ask students to purchase their grant. Other accounts can consider full_dataset or upgrade_url."
       );
     case "selector_cap":
       return (
         "This key has reached its monthly limit of distinct brands/areas. Brands and areas already queried this month still work. " +
-        "Check crehq_access_summary before offering an upgrade. For competition access, reuse included selectors or explain the reset; do not send students to checkout."
+        "Check the account's CREHQ access before offering an upgrade. For competition access, reuse included selectors or explain the reset; do not send students to checkout."
       );
     case "pagination_capped":
-      return "Do not request deeper pages; the sandbox is not a bulk-export path. Use included aggregate tools where available. Check crehq_access_summary before offering a licensed dataset; competition students should not be sent to checkout.";
+      return "Do not request deeper pages; the sandbox is not a bulk-export path. Use included aggregate tools where available. Check the account's CREHQ access before offering a licensed dataset; competition students should not be sent to checkout.";
     case "brand_not_found":
       return suggestions(body).length > 0
         ? "If a did_you_mean slug is what the user meant, retry with that exact slug; otherwise ask the user for the exact brand name."
@@ -224,7 +232,7 @@ export function hintForCode(body: unknown): string | undefined {
     case "invalid_state":
       return "Pass a valid US state code or name as state=.";
     case "payment_required":
-      return "This field is not included in this key's tier. Retry without it and check crehq_access_summary for included alternatives. Do not send competition accounts to checkout for granted access.";
+      return "This field is not included in this key's tier. Retry without it and check the account's CREHQ access for included alternatives. Do not send competition accounts to checkout for granted access.";
     case "rate_limited":
       return text(body.limit_type) === "quota"
         ? "This key's monthly call quota is used up. Explain the monthly reset. Check the account access before offering an upgrade; do not send competition accounts to checkout."

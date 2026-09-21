@@ -129,6 +129,16 @@ try {
   assert.match(rate.text, /limit_type: rate/);
   assert.match(rate.text, /Suggestion: Slow down and retry after 47s\./);
 
+  // Setup and team permission failures must not become generic 403 upgrade prompts.
+  for (const code of ["terms_not_accepted", "pass_required", "researcher_pass_required", "forbidden"]) {
+    current = { status: 403, headers: {}, body: { error: code, message: "Account setup or team access required." } };
+    const response = await handleRpc({ jsonrpc: "2.0", id: ++rpcId, method: "tools/call", params: { name: "crehq_team_list", arguments: {} } }, session);
+    const result = response?.result as { content: Array<{ text: string }>; isError: boolean };
+    assert.equal(result.isError, true);
+    assert.doesNotMatch(result.content[0].text, /Upgrade at https:/);
+    if (code === "terms_not_accepted") assert.match(result.content[0].text, /accept the current competition terms/);
+  }
+
   // ---- success --------------------------------------------------------------
   const pf = await callTool("crehq_locations_list", { brand: "planet-fitness", per_page: 2 }, "success_planet_fitness");
   assert.equal(pf.isError, false);

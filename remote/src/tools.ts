@@ -769,6 +769,29 @@ export const TOOLS: ToolDef[] = [
       call(() => c.request("/selfserve/company-requirements", { query: { company: String(a.company) } })),
   },
   {
+    name: "crehq_openings_nearby",
+    requiredScope: SCOPE_BASIC,
+    description:
+      "What is OPENING near a point, from dated public records: pending and newly issued liquor licences, new food-service permits, and commercial / multi-family building permits within a straight-line radius, with counts by type, the top named records (establishment name, plain-language status, date, distance, matched CREHQ brand when one resolves), and a per-brand roll-up. This sees a store BEFORE it opens and before any locator lists it — use it for 'is anyone already moving into this space?', 'what is under construction near this site?' and to check a leasing brochure's vacancy list against reality. It complements crehq_locations_nearby, which lists stores already operating. Coverage is partial: the response's coverage_states says which states have loaded records (Indiana today) and site_covered says whether THIS point is inside them; when site_covered is false, zero means 'not covered', never 'nothing opening' — say so. A permit is not a lease and not a confirmed opening; report records as dated public-record signals. Never name the issuing agency or portal; the response is already worded at the account's disclosure level.",
+    schema: {
+      lat: z.number().min(-90).max(90).describe("Latitude (decimal degrees)."),
+      lng: z.number().min(-180).max(180).describe("Longitude (decimal degrees, negative across the US)."),
+      radius_mi: z.number().min(0.1).max(25).optional().describe("Straight-line radius in miles, 0.1 to 25 (default 1). Use 0.25 for 'at this address', 1 for the block, 3 to 5 for the trade area."),
+      months: z.number().int().min(1).max(36).optional().describe("Look-back window in months for the signal date (default 12)."),
+    },
+    handler: (c, a) =>
+      call(() =>
+        c.request("/selfserve/openings/nearby", {
+          query: {
+            lat: a.lat as number,
+            lng: a.lng as number,
+            radius_mi: a.radius_mi as number,
+            months: a.months as number,
+          },
+        }),
+      ),
+  },
+  {
     name: "crehq_brand_investment",
     requiredScope: SCOPE_BASIC,
     description:
@@ -997,7 +1020,7 @@ export const TOOLS: ToolDef[] = [
     name: "crehq_locations_nearby",
     requiredScope: SCOPE_BASIC,
     description:
-      "Bounded radius search: sample tracked locations within N miles of a lat/lng point. Powers trade-area analysis, competitor mapping, and 'what's near this address' questions. Returns distance-sorted storefronts verified against government records and brand-published data, across every vertical CREHQ covers. " +
+      "Bounded radius search: sample tracked locations within N miles of a lat/lng point. Powers trade-area analysis, competitor mapping, and 'what's near this address' questions. It only knows stores already operating; for businesses that have NOT opened yet — pending licences, new permits, build-outs — call crehq_openings_nearby. Returns distance-sorted storefronts verified against government records and brand-published data, across every vertical CREHQ covers. " +
       selfServeGuidanceNote,
     schema: {
       lat: z.number().describe("Latitude (decimal degrees)."),

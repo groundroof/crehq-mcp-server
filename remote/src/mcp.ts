@@ -214,6 +214,7 @@ function isVisibleTool(name: string, session: McpSession): boolean {
     case "crehq_site_selector_match":
     case "crehq_brands_matching_site":
     case "crehq_company_site_requirements":
+    case "crehq_openings_nearby":
     case "crehq_brand_investment":
     case "crehq_brand_expansion":
     case "crehq_companies_search":

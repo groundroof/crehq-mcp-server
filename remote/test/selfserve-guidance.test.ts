@@ -87,6 +87,8 @@ try {
   assert.match(budget.text, /full_dataset: Cashland \(\$79, D1, scope full, 10 locations\) https:\/\/crehq\.com\/data-store\/cashland\//);
   assert.match(budget.text, /upgrade_url: https:\/\/crehq\.com\//);
   assert.match(budget.text, /Suggestion: Rows per brand are limited monthly/);
+  assert.match(budget.text, /For competition access, use included aggregate tools/);
+  assert.match(budget.text, /do not ask students to purchase their grant/);
   assert.doesNotMatch(budget.text, /api-keys/, "row budget errors no longer get the generic tier-upgrade hint");
 
   const selectorCap = await callTool("crehq_locations_list", { brand: "giant-tiger-canada", per_page: 1 }, "err_selector_cap");

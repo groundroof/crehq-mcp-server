@@ -39,6 +39,7 @@ assert.deepEqual(names, [
     "crehq_intelligence_preview",
     "crehq_locations_list",
     "crehq_locations_nearby",
+    "crehq_openings_nearby",
     "crehq_purchased_dataset_locations",
     "crehq_purchased_datasets_list",
     "crehq_request_upgrade",

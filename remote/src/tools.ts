@@ -214,7 +214,7 @@ export const TOOLS: ToolDef[] = [
     name: "crehq_request_upgrade",
     requiredScope: SCOPE_BASIC,
     description:
-      "Use this when the user asks CREHQ for data that is NOT included in the free sandbox: CREHQ Credit Signals / credit-intelligence profiles, ownership/sponsor/capital-structure/rating-history data, site-selection criteria, real-estate requirements, tenant requirements, franchise/FDD data, Item 19 financials, real-estate contacts, source provenance, event/change history, bulk dataset downloads, whitespace analysis, co-tenancy, modeled site profiles, recent location context with traffic/demographics, site timeline, point-in-time occupancy, or higher limits. This returns a clear upgrade prompt and records the requested topic as a CREHQ paywall/upgrade-intent signal for follow-up. Do NOT tell the user CREHQ lacks credit signals, modeled site profiles, or recent traffic/demographic context merely because the free footprint endpoint omits them.",
+      "First call crehq_access_summary and check the dedicated brand/site/FDD tools. Competition accounts must use their included alternatives and should not be sent to checkout. For other accounts, use this when the API confirms the requested data is not included: CREHQ Credit Signals / credit-intelligence profiles, ownership/sponsor/capital-structure/rating-history data, site-selection criteria, real-estate requirements, tenant requirements, franchise/FDD data, Item 19 financials, real-estate contacts, source provenance, event/change history, bulk dataset downloads, whitespace analysis, co-tenancy, modeled site profiles, recent location context with traffic/demographics, site timeline, point-in-time occupancy, or higher limits. This returns a clear upgrade prompt and records the requested topic as a CREHQ paywall/upgrade-intent signal for follow-up. Do NOT tell the user CREHQ lacks credit signals, modeled site profiles, or recent traffic/demographic context merely because the free footprint endpoint omits them.",
     schema: {
       requested_data: z
         .enum([
@@ -423,7 +423,7 @@ export const TOOLS: ToolDef[] = [
     name: "crehq_brand_economics",
     requiredScope: SCOPE_BASIC,
     description:
-      "A franchise brand's published costs to a franchisee — initial franchise fee, total investment range, royalty and ad-fund rates, liquid capital and net worth required — but ONLY figures CREHQ verified verbatim against the Franchise Disclosure Document it holds, each with the quoted sentence. A field comes back null with verified false when CREHQ has not checked it; report that as unverified rather than substituting a number from elsewhere. These are franchisor costs, not rent and not landlord income.",
+      "A franchise brand's published costs to a franchisee — initial franchise fee, total investment range, royalty and ad-fund rates, liquid capital and net worth required — but ONLY figures CREHQ verified verbatim against the Franchise Disclosure Document it holds, with verification status, source class and vintage where disclosed. Source quotations are returned only when the account is entitled to them. A field comes back null with verified false when CREHQ has not checked it; report that as unverified rather than substituting a number from elsewhere. These are franchisor costs, not rent and not landlord income.",
     schema: {
       company: z.string().describe("CREHQ brand slug or company_id. Resolve a name with crehq_companies_search first."),
     },
@@ -759,7 +759,7 @@ export const TOOLS: ToolDef[] = [
     name: "crehq_company_site_requirements",
     requiredScope: SCOPE_BASIC,
     description:
-      "Get one brand's PUBLISHED site-selection criteria as CREHQ has recorded them: unit size, site types, lease terms, traffic, population, household income, and co-tenancy text, each with its source. These are what the brand states it wants, not a measurement of where it operates. Published criteria are often partial, dated, or absent; a missing field means CREHQ has no published value, not that the brand has no requirement. Check the sources before quoting a requirement as current.",
+      "Get one brand's PUBLISHED site-selection criteria as CREHQ has recorded them: unit size, site types, lease terms, traffic, population, household income, and co-tenancy text, with source class and vintage where available; direct source links depend on account access. These are what the brand states it wants, not a measurement of where it operates. Published criteria are often partial, dated, or absent; a missing field means CREHQ has no published value, not that the brand has no requirement. Check the returned vintage before treating a requirement as current; never invent a source link.",
     schema: {
       company: z
         .union([z.string().trim().min(1).max(200), z.number().int().positive()])
@@ -772,7 +772,7 @@ export const TOOLS: ToolDef[] = [
     name: "crehq_brand_investment",
     requiredScope: SCOPE_BASIC,
     description:
-      "A franchise brand's estimated initial investment table (FDD Item 7) as printed in its latest Franchise Disclosure Document: the total range plus each line item (franchise fee, rent and deposits, build-out, equipment, signage, inventory, working capital...) with low/high dollars, when it is due and who is paid. Only figures CREHQ matched verbatim against the filing text are returned; line_items_status says whether the rows reconciled to the printed total. These are the franchisor's published costs to a franchisee, not rent. Needs a Researcher Pass on the key's account (402 otherwise). Resolve a name with crehq_companies_search first.",
+      "A franchise brand's estimated initial investment table (FDD Item 7) as printed in its latest Franchise Disclosure Document: the total range and any line items cleared for disclosure, with low/high dollars where available. Line items may be withheld or unavailable; inspect display_mode and line_items_status and do not reconstruct withheld rows. Only figures CREHQ matched verbatim against the filing text are returned; line_items_status says whether the rows reconciled to the printed total. These are the franchisor's published costs to a franchisee, not rent. Needs a Researcher Pass on the key's account (402 otherwise). Resolve a name with crehq_companies_search first.",
     schema: {
       company: z
         .union([z.string().trim().min(1).max(200), z.number().int().positive()])
@@ -997,7 +997,7 @@ export const TOOLS: ToolDef[] = [
     name: "crehq_locations_nearby",
     requiredScope: SCOPE_BASIC,
     description:
-      "Radius search: find all tracked locations within N miles of a lat/lng point. Powers trade-area analysis, competitor mapping, and 'what's near this address' questions. Returns distance-sorted storefronts verified against government records and brand-published data, across every vertical CREHQ covers. " +
+      "Bounded radius search: sample tracked locations within N miles of a lat/lng point. Powers trade-area analysis, competitor mapping, and 'what's near this address' questions. Returns distance-sorted storefronts verified against government records and brand-published data, across every vertical CREHQ covers. " +
       selfServeGuidanceNote,
     schema: {
       lat: z.number().describe("Latitude (decimal degrees)."),
@@ -1362,9 +1362,10 @@ function zodToJson(def: ZodTypeAny): Record<string, unknown> {
     typeName: string;
     innerType?: ZodTypeAny;
     values?: string[];
+    value?: string | number | boolean | null;
     type?: ZodTypeAny;
     options?: ZodTypeAny[];
-    checks?: Array<{ kind?: string; regex?: RegExp }>;
+    checks?: Array<{ kind?: string; regex?: RegExp; value?: number; inclusive?: boolean }>;
   };
   const typeName = inner.typeName;
 
@@ -1379,12 +1380,22 @@ function zodToJson(def: ZodTypeAny): Record<string, unknown> {
         ...(inner.checks?.some((check) => check.kind === "url") ? { format: "uri" } : {}),
         ...(regexCheck?.regex ? { pattern: regexCheck.regex.source } : {}),
       });
-    case "ZodNumber":
-      return base({ type: "number" });
+    case "ZodNumber": {
+      const number: Record<string, unknown> = {
+        type: inner.checks?.some((check) => check.kind === "int") ? "integer" : "number",
+      };
+      for (const check of inner.checks ?? []) {
+        if (check.kind === "min") number[check.inclusive ? "minimum" : "exclusiveMinimum"] = check.value;
+        if (check.kind === "max") number[check.inclusive ? "maximum" : "exclusiveMaximum"] = check.value;
+      }
+      return base(number);
+    }
     case "ZodBoolean":
       return base({ type: "boolean" });
     case "ZodEnum":
       return base({ type: "string", enum: inner.values });
+    case "ZodLiteral":
+      return base({ type: inner.value === null ? "null" : typeof inner.value, const: inner.value });
     case "ZodArray":
       return base({ type: "array", items: zodToJson(inner.type as ZodTypeAny) });
     case "ZodObject":
@@ -1393,8 +1404,7 @@ function zodToJson(def: ZodTypeAny): Record<string, unknown> {
       return base({ type: "object" });
     case "ZodUnion": {
       const opts = (inner.options ?? []).map((o) => zodToJson(o));
-      const types = Array.from(new Set(opts.map((o) => o.type).filter(Boolean)));
-      return base({ type: types.length === 1 ? types[0] : types });
+      return base({ anyOf: opts });
     }
     case "ZodUnknown":
     default:

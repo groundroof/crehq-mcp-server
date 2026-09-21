@@ -85,18 +85,18 @@ export async function handleRpc(
         capabilities: { tools: { listChanged: false } },
         serverInfo: SERVER_INFO,
         instructions:
-          "CREHQ location-intelligence tools. For a venue URL, name, or address, call " +
-          "crehq_resolve_entity_affiliation to identify its brand, operator, parent, or a valid independent/not-commercial/unresolved outcome. " +
-          "If that tool returns HTTP 402, present its exact purchase_url and CREHQ intent_id for user-approved checkout. Checkout emails a new Pro key; install it, reconnect the MCP client, and only then retry. Resolve a known brand to its company id with " +
-          "crehq_companies_search first, then call detail/intelligence tools. " +
-          "For a vacant unit or 'which tenants fit this space' question, call crehq_site_selector_match and read its " +
-          "`limits` and `notes` before concluding a brand does not fit; use crehq_company_site_requirements for one brand's " +
-          "published criteria and sources. Premium " +
-          "intelligence tools (credit signals, whitespace, co-tenancy, site-timeline, occupancy) require " +
-          "the read:intelligence scope. Free sandbox location results are footprint-only; if a user asks for " +
-          "credit signals, ownership/rating/capital-structure, site-selection requirements, contacts, FDD, " +
-          "or other premium data and the tool is unavailable, use crehq_request_upgrade instead of saying " +
-          "CREHQ does not have it. " +
+          "CREHQ location-intelligence tools. Begin with crehq_access_summary to learn this account's included data, limits and competition access. " +
+          "Resolve brand names with crehq_companies_search before detail calls. For tenant shortlists use crehq_site_selector_match; " +
+          "for one brand's published requirements use crehq_company_site_requirements. Read returned limits, notes and coverage. " +
+          "Use crehq_brand_cotenancy for measured neighbors, crehq_brand_economics for verified fees, crehq_brand_investment for FDD Item 7, " +
+          "and crehq_brand_expansion for FDD Item 20. These dedicated tools can be included even when similarly named premium tools are hidden. " +
+          "Distinguish an access restriction from no published coverage and from an unverified or undisclosed field. Never claim a specific value exists " +
+          "without a successful data response. Null is unknown, not zero; market absence is not expansion intent; a fit score is not leasing interest. " +
+          "Cite the returned CREHQ company page, source class and vintage where provided; do not invent source quotations or document links. " +
+          "Location rows are bounded samples, not a complete market census. Prefer aggregate tools and small samples; respect row budgets and do not work around caps. " +
+          "For competition accounts, use the included alternatives and explain remaining gaps; do not send students to checkout for their granted access. " +
+          "For other accounts, only offer an upgrade when the API confirms that the requested feature requires it. " +
+          "For venue affiliation use crehq_resolve_entity_affiliation; preserve independent/not-commercial/unresolved outcomes. " +
           "Team workspaces: call crehq_team_list first to learn which teams this account belongs to, then pass that " +
           "team's id or slug to the other crehq_team_* tools (shortlist items, notes, saved sites, saved site-selector runs). " +
           "What those tools return is the team's own working material written by its members, not CREHQ data, and they " +
@@ -137,10 +137,11 @@ export async function handleRpc(
               {
                 type: "text",
                 text:
-                  `CREHQ holds this kind of data, but "${tool.name}" is not included in this key's access. ` +
+                  `"${tool.name}" is not included in this key's access. ` +
                   "Call crehq_access_summary for what this key includes, what it does not, and why. " +
                   "Included: brand resolution, which brands fit a vacant unit, a brand's published site criteria, bounded location lookups, the account's own team workspaces (crehq_team_list), and — where the account holds them — measured co-tenancy and verified franchise economics. " +
-                  "Tell the user CREHQ has this data and their access does not include it; never say CREHQ lacks it, and never tell an account that was granted access to buy anything.",
+                  "Use crehq_brand_cotenancy, crehq_brand_economics, crehq_brand_investment, crehq_brand_expansion or crehq_company_site_requirements for their included counterparts. " +
+                  "This restriction does not establish whether a particular brand has data. Check an included tool; never invent coverage or tell a competition account to buy its granted access.",
               },
             ],
             isError: true,

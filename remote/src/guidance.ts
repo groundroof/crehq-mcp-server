@@ -204,15 +204,15 @@ export function hintForCode(body: unknown): string | undefined {
       return (
         "Rows per brand are limited monthly on this key, and the budget in row_budget is used up. " +
         "Tell the user; do not retry with other filters, radii or pages (each one counts against the budget). " +
-        "Offer full_dataset for the complete file, or upgrade_url for a larger monthly budget."
+        "Check crehq_access_summary. For competition access, use included aggregate tools where available or explain the reset; do not ask students to purchase their grant. Other accounts can consider full_dataset or upgrade_url."
       );
     case "selector_cap":
       return (
         "This key has reached its monthly limit of distinct brands/areas. Brands and areas already queried this month still work. " +
-        "Offer upgrade_url, or enterprise_url for broad or production use."
+        "Check crehq_access_summary before offering an upgrade. For competition access, reuse included selectors or explain the reset; do not send students to checkout."
       );
     case "pagination_capped":
-      return "Do not request deeper pages; the sandbox is not a bulk-export path. Offer the licensed dataset (full_dataset from an earlier page, or upgrade_url).";
+      return "Do not request deeper pages; the sandbox is not a bulk-export path. Use included aggregate tools where available. Check crehq_access_summary before offering a licensed dataset; competition students should not be sent to checkout.";
     case "brand_not_found":
       return suggestions(body).length > 0
         ? "If a did_you_mean slug is what the user meant, retry with that exact slug; otherwise ask the user for the exact brand name."
@@ -224,10 +224,10 @@ export function hintForCode(body: unknown): string | undefined {
     case "invalid_state":
       return "Pass a valid US state code or name as state=.";
     case "payment_required":
-      return "This field is not included in this key's tier. Retry without it, or offer the user upgrade_url.";
+      return "This field is not included in this key's tier. Retry without it and check crehq_access_summary for included alternatives. Do not send competition accounts to checkout for granted access.";
     case "rate_limited":
       return text(body.limit_type) === "quota"
-        ? "This key's monthly call quota is used up. Offer upgrade_url, or wait for the monthly reset."
+        ? "This key's monthly call quota is used up. Explain the monthly reset. Check the account access before offering an upgrade; do not send competition accounts to checkout."
         : undefined;
     default:
       return undefined;

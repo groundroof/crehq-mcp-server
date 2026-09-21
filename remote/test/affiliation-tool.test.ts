@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { z } from "zod";
+import { TOOLS, toJsonSchema } from "../src/tools.js";
 import { handleRpc, type JsonRpcResponse, type McpSession } from "../src/mcp.js";
 
 const session: McpSession = {
@@ -67,6 +69,34 @@ const blockedFullTool = callResult(
 );
 assert.equal(blockedFullTool.isError, true);
 assert.match(blockedFullTool.content?.[0]?.text ?? "", /is not included in this key/i);
+
+// Check the full catalog, not just the subset exposed to this session.
+const jsonTypes = new Set(["object", "array", "string", "number", "integer", "boolean", "null"]);
+function checkSchema(node: unknown): void {
+  if (!node || typeof node !== "object") return;
+  if (Array.isArray(node)) { node.forEach(checkSchema); return; }
+  const schema = node as Record<string, unknown>;
+  if ("type" in schema) {
+    const types = Array.isArray(schema.type) ? schema.type : [schema.type];
+    assert.ok(types.length > 0, "JSON Schema type arrays cannot be empty");
+    for (const type of types) assert.ok(jsonTypes.has(String(type)), `Invalid schema type: ${type}`);
+  }
+  Object.values(schema).forEach(checkSchema);
+}
+for (const tool of TOOLS) checkSchema(toJsonSchema(tool.schema));
+for (const [name, field] of [["crehq_site_selector_match", "market_radius"], ["crehq_brands_matching_site", "market_radius_miles"]]) {
+  const schema = listedTools.find((t) => t.name === name)?.inputSchema.properties[field];
+  assert.ok(schema && typeof schema === "object");
+  assert.deepEqual((schema as { anyOf: unknown[] }).anyOf, [1, 3, 5, 10, 25].map((n) => ({ type: "number", const: n })));
+}
+const numeric = toJsonSchema({ n: z.number().int().min(1).max(100), mixed: z.union([z.string(), z.number()]) });
+assert.deepEqual(numeric.properties.n, { type: "integer", minimum: 1, maximum: 100 });
+assert.deepEqual(numeric.properties.mixed, { anyOf: [{ type: "string" }, { type: "number" }] });
+const init = await handleRpc({ jsonrpc: "2.0", id: "instructions", method: "initialize" }, session);
+const instructions = (init?.result as { instructions: string }).instructions;
+assert.match(instructions, /Begin with crehq_access_summary/);
+assert.match(instructions, /crehq_brand_investment/);
+assert.match(instructions, /do not send students to checkout/);
 
 const advertised = listedTools.find((tool) => tool.name === "crehq_resolve_entity_affiliation");
 assert.ok(advertised);

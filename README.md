@@ -5,7 +5,7 @@ A [Model Context Protocol](https://modelcontextprotocol.io) server that turns
 tools for Claude and other AI agents. Ask an agent *"where should Chipotle open
 next?"*, *"which hotel chain is this venue affiliated with?"*, *"who has ever
 occupied this address?"*, or *"what are Aspen Dental's credit signals?"* — and it can actually answer,
-backed by CREHQ's canonical, **multi-source government-verified** database of
+backed by CREHQ's canonical, **multi-source verified** database (government records, franchise filings and brand-published data) of
 franchise & multi-unit brands, individual storefronts, FDD financials, credit signals, and
 site-level tenancy history.
 

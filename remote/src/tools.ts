@@ -861,6 +861,7 @@ export const TOOLS: ToolDef[] = [
                   brand: a.brand as string,
                   state: a.state as string,
                   country: a.country as string,
+                  category: a.category as string,
                   limit: (a.per_page as number) ?? 25,
                   page: a.page as number,
                   fields: a.include_provenance ? d2LocationFields : undefined,
@@ -884,6 +885,7 @@ export const TOOLS: ToolDef[] = [
               query: {
                 brand: a.brand as string,
                 state: a.state as string,
+                country: String(a.state ?? "").trim() ? "US" : undefined,
                 category: a.category as string,
                 per_page: a.per_page as number,
                 page: a.page as number,

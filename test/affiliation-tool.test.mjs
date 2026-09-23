@@ -117,3 +117,103 @@ try {
 }
 
 console.log("PASS stdio affiliation registry, client POST, success preservation, and 402 checkout formatting");
+
+const locationsTool = TOOLS.find((candidate) => candidate.name === "crehq_locations_list");
+const purchasedLocationsTool = TOOLS.find((candidate) => candidate.name === "crehq_purchased_dataset_locations");
+assert.ok(locationsTool, "stdio registry exposes crehq_locations_list");
+assert.ok(purchasedLocationsTool, "stdio registry preserves purchased dataset locations");
+
+const fullClient = new CrehqClient({
+  apiKey: "crehq_live_locations_test",
+  apiBase: "https://api.example.test/wp-json/crehq/v1",
+  timeoutMs: 1_000,
+  apiSurface: "full",
+});
+const locationRequests = [];
+
+try {
+  globalThis.fetch = async (input) => {
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    locationRequests.push(url);
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: { "content-type": "application/json", "x-wp-total": "41", "x-wp-totalpages": "6" },
+    });
+  };
+
+  await locationsTool.handler(client, {
+    brand: "planet-fitness",
+    country: "ES",
+    category: "fitness",
+    include_provenance: true,
+    per_page: 7,
+    page: 3,
+  });
+  assert.equal(locationRequests[0].pathname, "/wp-json/crehq/v1/selfserve/locations");
+  assert.deepEqual(Object.fromEntries(locationRequests[0].searchParams), {
+    brand: "planet-fitness",
+    country: "ES",
+    category: "fitness",
+    limit: "7",
+    page: "3",
+    fields: "provenance,sources,confidence_score,first_observed_at",
+  });
+
+  await locationsTool.handler(client, { brand: "planet-fitness", state: "TX", country: "ES", category: "fitness" });
+  assert.equal(locationRequests[1].pathname, "/wp-json/crehq/v1/selfserve/locations");
+  assert.deepEqual(Object.fromEntries(locationRequests[1].searchParams), {
+    brand: "planet-fitness",
+    state: "TX",
+    country: "ES",
+    category: "fitness",
+    limit: "25",
+  }, "the MCP preserves a state/country conflict for backend validation");
+
+  await locationsTool.handler(fullClient, { state: "TX", category: "fitness", per_page: 7, page: 3 });
+  assert.equal(locationRequests[2].pathname, "/wp-json/crehq/v1/locations");
+  assert.deepEqual(Object.fromEntries(locationRequests[2].searchParams), {
+    state: "TX",
+    country: "US",
+    category: "fitness",
+    per_page: "7",
+    page: "3",
+  });
+
+  await locationsTool.handler(fullClient, { state: "", category: "restaurant" });
+  assert.deepEqual(Object.fromEntries(locationRequests[3].searchParams), { category: "restaurant" });
+
+  await locationsTool.handler(fullClient, { category: "restaurant" });
+  assert.deepEqual(Object.fromEntries(locationRequests[4].searchParams), { category: "restaurant" });
+
+  await locationsTool.handler(fullClient, { state: "   ", category: "restaurant" });
+  assert.deepEqual(Object.fromEntries(locationRequests[5].searchParams), {
+    state: "   ",
+    category: "restaurant",
+  }, "raw whitespace is preserved but does not infer country");
+
+  const beforeNoBrand = locationRequests.length;
+  const noBrand = await locationsTool.handler(client, { category: "restaurant" });
+  assert.equal(noBrand.isError, true);
+  assert.match(noBrand.content[0].text, /require a bounded location query/i);
+  assert.equal(locationRequests.length, beforeNoBrand, "missing-brand selfserve query does not fetch");
+
+  await purchasedLocationsTool.handler(client, {
+    dataset: "pilot-flying-j",
+    state: "ON",
+    country: "CA",
+    per_page: 2,
+    page: 4,
+  });
+  assert.equal(locationRequests[6].pathname, "/wp-json/crehq/v1/selfserve/dataset-locations");
+  assert.deepEqual(Object.fromEntries(locationRequests[6].searchParams), {
+    dataset: "pilot-flying-j",
+    state: "ON",
+    country: "CA",
+    limit: "2",
+    page: "4",
+  }, "purchased snapshot country and paging remain untouched");
+} finally {
+  globalThis.fetch = originalFetch;
+}
+
+console.log("PASS stdio current-upstream locations filters, US bridge, boundaries, pagination, and provenance");

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { z } from "zod";
-import { TOOLS, toJsonSchema } from "../src/tools.js";
+import { SCOPE_BASIC, TOOLS, toJsonSchema } from "../src/tools.js";
 import { handleRpc, type JsonRpcResponse, type McpSession } from "../src/mcp.js";
 
 const session: McpSession = {
@@ -285,3 +285,112 @@ try {
 }
 
 console.log("PASS remote selfserve catalog, affiliation POST, success preservation, and 402 checkout formatting");
+
+const fullSession: McpSession = { ...session, apiSurface: "full" };
+const locationRequests: URL[] = [];
+const purchasedLocationsDef = TOOLS.find((tool) => tool.name === "crehq_purchased_dataset_locations");
+assert.equal(purchasedLocationsDef?.requiredScope, SCOPE_BASIC, "purchased snapshot scope remains read:locations");
+
+async function callLocations(id: number, activeSession: McpSession, args: Record<string, unknown>): Promise<CallResult> {
+  return callResult(
+    await handleRpc(
+      { jsonrpc: "2.0", id, method: "tools/call", params: { name: "crehq_locations_list", arguments: args } },
+      activeSession,
+    ),
+  );
+}
+
+try {
+  globalThis.fetch = async (input: RequestInfo | URL): Promise<Response> => {
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    locationRequests.push(url);
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: { "content-type": "application/json", "x-wp-total": "41", "x-wp-totalpages": "6" },
+    });
+  };
+
+  await callLocations(30, session, {
+    brand: "planet-fitness",
+    country: "ES",
+    category: "fitness",
+    include_provenance: true,
+    per_page: 7,
+    page: 3,
+  });
+  assert.equal(locationRequests[0].pathname, "/wp-json/crehq/v1/selfserve/locations");
+  assert.deepEqual(Object.fromEntries(locationRequests[0].searchParams), {
+    brand: "planet-fitness",
+    country: "ES",
+    category: "fitness",
+    limit: "7",
+    page: "3",
+    fields: "provenance,sources,confidence_score,first_observed_at",
+  });
+
+  await callLocations(31, session, { brand: "planet-fitness", state: "TX", country: "ES", category: "fitness" });
+  assert.equal(locationRequests[1].pathname, "/wp-json/crehq/v1/selfserve/locations");
+  assert.deepEqual(Object.fromEntries(locationRequests[1].searchParams), {
+    brand: "planet-fitness",
+    state: "TX",
+    country: "ES",
+    category: "fitness",
+    limit: "25",
+  }, "the MCP preserves a state/country conflict for backend validation");
+
+  await callLocations(32, fullSession, { state: "TX", category: "fitness", per_page: 7, page: 3 });
+  assert.equal(locationRequests[2].pathname, "/wp-json/crehq/v1/locations");
+  assert.deepEqual(Object.fromEntries(locationRequests[2].searchParams), {
+    state: "TX",
+    country: "US",
+    category: "fitness",
+    per_page: "7",
+    page: "3",
+  });
+
+  await callLocations(33, fullSession, { state: "", category: "restaurant" });
+  assert.deepEqual(Object.fromEntries(locationRequests[3].searchParams), { category: "restaurant" });
+
+  await callLocations(34, fullSession, { category: "restaurant" });
+  assert.deepEqual(Object.fromEntries(locationRequests[4].searchParams), { category: "restaurant" });
+
+  await callLocations(35, fullSession, { state: "   ", category: "restaurant" });
+  assert.deepEqual(Object.fromEntries(locationRequests[5].searchParams), {
+    state: "   ",
+    category: "restaurant",
+  }, "raw whitespace is preserved but does not infer country");
+
+  const beforeNoBrand = locationRequests.length;
+  const noBrand = await callLocations(36, session, { category: "restaurant" });
+  assert.equal(noBrand.isError, true);
+  assert.match(noBrand.content?.[0]?.text ?? "", /require a bounded location query/i);
+  assert.equal(locationRequests.length, beforeNoBrand, "missing-brand selfserve query does not fetch");
+
+  const purchased = callResult(
+    await handleRpc(
+      {
+        jsonrpc: "2.0",
+        id: 37,
+        method: "tools/call",
+        params: {
+          name: "crehq_purchased_dataset_locations",
+          arguments: { dataset: "pilot-flying-j", state: "ON", country: "CA", per_page: 2, page: 4 },
+        },
+      },
+      session,
+    ),
+  );
+  assert.equal(purchased.isError, undefined);
+  assert.equal(locationRequests[6].pathname, "/wp-json/crehq/v1/selfserve/dataset-locations");
+  assert.deepEqual(Object.fromEntries(locationRequests[6].searchParams), {
+    dataset: "pilot-flying-j",
+    state: "ON",
+    country: "CA",
+    limit: "2",
+    page: "4",
+  }, "purchased snapshot country and paging remain untouched");
+} finally {
+  globalThis.fetch = originalFetch;
+}
+
+console.log("PASS remote current-upstream locations filters, US bridge, boundaries, pagination, and provenance");

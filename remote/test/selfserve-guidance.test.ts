@@ -139,6 +139,27 @@ try {
     if (code === "terms_not_accepted") assert.match(result.content[0].text, /accept the current competition terms/);
   }
 
+  // An expired or revoked key is not a tier limit: never an upgrade prompt.
+  for (const body of [
+    { code: "invalid_api_key", message: "API key has expired.", data: { status: 403 } },
+    { code: "rest_forbidden_expired_api_key", message: "API key has expired.", data: { status: 403 } },
+    { code: "invalid_api_key", message: "Invalid API key.", data: { status: 403, reason: "expired" } },
+  ]) {
+    current = { status: 403, headers: {}, body };
+    const response = await handleRpc({ jsonrpc: "2.0", id: ++rpcId, method: "tools/call", params: { name: "crehq_team_list", arguments: {} } }, session);
+    const result = response?.result as { content: Array<{ text: string }>; isError: boolean };
+    assert.equal(result.isError, true);
+    assert.doesNotMatch(result.content[0].text, /Upgrade at https:/);
+    assert.match(result.content[0].text, /has EXPIRED\. This is not a tier or data limit/);
+  }
+  current = { status: 403, headers: {}, body: { code: "invalid_api_key", message: "Invalid API key.", data: { status: 403 } } };
+  {
+    const response = await handleRpc({ jsonrpc: "2.0", id: ++rpcId, method: "tools/call", params: { name: "crehq_team_list", arguments: {} } }, session);
+    const result = response?.result as { content: Array<{ text: string }>; isError: boolean };
+    assert.doesNotMatch(result.content[0].text, /Upgrade at https:/);
+    assert.match(result.content[0].text, /was not accepted \(revoked, replaced or unknown\)/);
+  }
+
   // ---- success --------------------------------------------------------------
   const pf = await callTool("crehq_locations_list", { brand: "planet-fitness", per_page: 2 }, "success_planet_fitness");
   assert.equal(pf.isError, false);

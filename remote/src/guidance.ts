@@ -197,9 +197,32 @@ export function errorGuidanceLines(body: unknown): string[] {
  * Next-step suggestion for a self-serve error code, or undefined so the caller
  * falls back to its generic HTTP-status hint.
  */
+/**
+ * True when the API refused the key because it EXPIRED. WordPress reports this
+ * under several codes (invalid_api_key, rest_forbidden_expired_api_key,
+ * expired_token, api_key_expired), so the code alone is not enough: the
+ * additive `data.reason` field or the message decides.
+ */
+export function isExpiredKey(body: unknown): boolean {
+  if (!isObj(body)) return false;
+  const code = errorCode(body);
+  if (code === "api_key_expired" || code === "rest_forbidden_expired_api_key" || code === "expired_token") return true;
+  const data = isObj(body.data) ? body.data : undefined;
+  if (data && text(data.reason) === "expired") return true;
+  return code === "invalid_api_key" && /expired/i.test(text(body.message) ?? "");
+}
+
+const EXPIRED_KEY_HINT =
+  "The CREHQ key linked to this connector has EXPIRED. This is not a tier or data limit: do not offer an upgrade or checkout. " +
+  "Remove and re-add the CREHQ connector (or re-authorize it) to sign in again and issue a fresh key; if the account's access itself has ended, " +
+  "the user can check it at https://crehq.com/account/.";
+
 export function hintForCode(body: unknown): string | undefined {
   if (!isObj(body)) return undefined;
+  if (isExpiredKey(body)) return EXPIRED_KEY_HINT;
   switch (errorCode(body)) {
+    case "invalid_api_key":
+      return "The CREHQ key linked to this connector was not accepted (revoked, replaced or unknown). This is not a tier limit: do not offer an upgrade. Re-authorize the connector to link a current key.";
     case "terms_not_accepted":
       return "Sign in to CREHQ and accept the current competition terms, then retry. This is an account setup step; do not offer an upgrade or checkout.";
     case "pass_required":

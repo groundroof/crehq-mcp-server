@@ -64,6 +64,9 @@ const d2LocationFields = "provenance,sources,confidence_score,first_observed_at"
 const selfServeGuidanceNote =
   "On CREHQ self-serve/sandbox keys the rows you receive per brand are limited monthly: every response states the exact row_budget, a coverage_note, and the full_dataset offer when a complete file is on sale. Relay those to the user instead of paging or re-filtering around the limit. If a brand is not found, retry with one of the did_you_mean slugs the error returns.";
 
+const locationCategoryNote =
+  "Category vocabulary: every row carries brand_name and brand_slug, a normalized category and subcategory (slugs such as restaurants, coffee-tea, pharmacy, banking-finance) and, separately, format (the brand's own store-format label such as drive-thru or suites, never a category). The category filter accepts exactly those category/subcategory slugs or display names (singular or plural, comma list; e.g. 'restaurant', 'coffee', 'pharmacy'); the response's selector.category_matched shows what it matched. An unknown value returns an unknown_category error with valid_categories and did_you_mean, never a silent zero. A null category means the brand is not categorised yet, so a category filter cannot match it.";
+
 /** Site types accepted by /selfserve/site-selector/match (comma list). */
 const SITE_SELECTOR_SITE_TYPES = [
   "endcap",
@@ -772,7 +775,7 @@ export const TOOLS: ToolDef[] = [
     name: "crehq_openings_nearby",
     requiredScope: SCOPE_BASIC,
     description:
-      "What is OPENING near a point, from dated public records: pending and newly issued liquor licences, new food-service permits, and commercial / multi-family building permits within a straight-line radius, with counts by type, the top named records (establishment name, plain-language status, date, distance, matched CREHQ brand when one resolves), and a per-brand roll-up. This sees a store BEFORE it opens and before any locator lists it — use it for 'is anyone already moving into this space?', 'what is under construction near this site?' and to check a leasing brochure's vacancy list against reality. It complements crehq_locations_nearby, which lists stores already operating. Coverage is partial: the response's coverage_states says which states have loaded records (Indiana today) and site_covered says whether THIS point is inside them; when site_covered is false, zero means 'not covered', never 'nothing opening' — say so. A permit is not a lease and not a confirmed opening; report records as dated public-record signals. Never name the issuing agency or portal; the response is already worded at the account's disclosure level.",
+      "What is OPENING near a point, from dated public records: pending and newly issued liquor licences, new food-service permits, and commercial / multi-family building permits within a straight-line radius, with counts by type, the top named records (establishment name, plain-language status, date, distance, matched CREHQ brand when one resolves), and a per-brand roll-up. This sees a store BEFORE it opens and before any locator lists it — use it for 'is anyone already moving into this space?', 'what is under construction near this site?' and to check a leasing brochure's vacancy list against reality. It complements crehq_locations_nearby, which lists stores already operating. Coverage is partial and differs by record type: coverage_text says which record types are loaded where (some statewide, some for one county or city only, with the share that carries a map location), and site_coverage lists, for THIS point, the record types covered, not_covered and unknown. Quote coverage_text and the note; a zero for a not_covered type means 'not covered', never 'nothing opening'. site_covered is true when at least one type covers the point. A permit is not a lease and not a confirmed opening; report records as dated public-record signals. Never name the issuing agency or portal; the response is already worded at the account's disclosure level.",
     schema: {
       lat: z.number().min(-90).max(90).describe("Latitude (decimal degrees)."),
       lng: z.number().min(-180).max(180).describe("Longitude (decimal degrees, negative across the US)."),
@@ -836,6 +839,8 @@ export const TOOLS: ToolDef[] = [
     requiredScope: SCOPE_BASIC,
     description:
       "List individual store/branch/site records, filterable by brand, US state, and category. Each location carries a stable entity_uid, geocoded address, open/closed status, and a multi-source verification trace. The raw, government-cross-checked footprint behind any brand. This free/sandbox footprint output does NOT include credit signals, ownership/rating history, capital structure, or tenant-credit diligence; for those requests use crehq_company_credit_signals if available, otherwise call crehq_request_upgrade with requested_data='credit_signals'. " +
+      locationCategoryNote +
+      " " +
       selfServeGuidanceNote,
     schema: {
       brand: z.string().optional().describe("Brand slug or name to filter by (e.g. 'planet-fitness')."),
@@ -844,7 +849,10 @@ export const TOOLS: ToolDef[] = [
         .string()
         .optional()
         .describe("Self-serve keys: 2-letter ISO country code (e.g. 'ES') to pick the market for brands CREHQ serves per country. With state= it must be US."),
-      category: z.string().optional().describe("Vertical/category slug."),
+      category: z
+        .string()
+        .optional()
+        .describe("Category or subcategory slug or name, e.g. 'restaurants', 'coffee-tea', 'pharmacy' (the same slugs rows carry in category/subcategory). Unknown values return valid_categories."),
       include_provenance: z
         .boolean()
         .optional()
@@ -1022,14 +1030,19 @@ export const TOOLS: ToolDef[] = [
     name: "crehq_locations_nearby",
     requiredScope: SCOPE_BASIC,
     description:
-      "Bounded radius search: sample tracked locations within N miles of a lat/lng point. Powers trade-area analysis, competitor mapping, and 'what's near this address' questions. It only knows stores already operating; for businesses that have NOT opened yet — pending licences, new permits, build-outs — call crehq_openings_nearby. Returns distance-sorted storefronts verified against government records and brand-published data, across every vertical CREHQ covers. " +
+      "Bounded radius search: sample tracked locations within N miles of a lat/lng point. Powers trade-area analysis, competitor mapping, and 'what's near this address' questions. It only knows stores already operating; for businesses that have NOT opened yet — pending licences, new permits, build-outs — call crehq_openings_nearby. Returns distance-sorted storefronts verified against government records and brand-published data, across every vertical CREHQ covers. Rows are tracked chains and registries, not a census of every business, so a missing business is not proof it is absent. Pagination: total_available, total_pages, has_more and coverage_note say how many rows the radius holds; max_page is the deepest page that holds rows (page_cap is the sandbox's fixed depth limit). " +
+      locationCategoryNote +
+      " " +
       selfServeGuidanceNote,
     schema: {
       lat: z.number().describe("Latitude (decimal degrees)."),
       lng: z.number().describe("Longitude (decimal degrees)."),
       radius_mi: z.number().min(0.1).max(100).optional().describe("Search radius in miles (default 5)."),
       brand: z.string().optional().describe("Optional: restrict to one brand."),
-      category: z.string().optional().describe("Optional: restrict to one vertical/category."),
+      category: z
+        .string()
+        .optional()
+        .describe("Optional: restrict to a category or subcategory, e.g. 'restaurant', 'coffee', 'pharmacy' (slugs or names; rows carry the same slugs in category/subcategory). Unknown values return valid_categories, never an empty result."),
       include_noncommercial: z
         .boolean()
         .optional()
@@ -1041,6 +1054,7 @@ export const TOOLS: ToolDef[] = [
         .optional()
         .describe("For CREHQ Pro self-serve keys, include D2 provenance, source, confidence and first-observed fields. Free sandbox keys will return upgrade intent."),
       per_page: perPage,
+      page,
     },
     handler: (c, a) =>
       c.apiSurface === "selfserve"
@@ -1051,7 +1065,9 @@ export const TOOLS: ToolDef[] = [
                 lng: a.lng as number,
                 radius: (a.radius_mi as number) ?? 5,
                 brand: a.brand as string,
+                category: a.category as string,
                 limit: (a.per_page as number) ?? 25,
+                page: a.page as number,
                 fields: a.include_provenance ? d2LocationFields : undefined,
                 include_noncommercial: a.include_noncommercial ? "1" : undefined,
               },

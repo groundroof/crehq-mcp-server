@@ -201,6 +201,42 @@ try {
   globalThis.fetch = originalFetch;
 }
 
+// Site context: summary access relays the API's own upgrade link; uncovered, unconfirmed and stale
+// sections and the not_crehq list are surfaced; a competition (cohort) full report never mentions an upgrade.
+{
+  const summary = ok({
+    data: {
+      access: { level: "summary", basis: "free sandbox key", upgrade_url: "https://crehq.com/developers/sandbox/#pro-checkout" },
+      sections: {
+        demographics: { covered: null, stale: false, note: "Ring demographics are not available yet." },
+        traffic: { covered: true, stale: false },
+        jobs: { covered: false, stale: false, note: "No workplace job counts are loaded for this area." },
+        anchors: { covered: true, stale: true, vintage: "2019" },
+      },
+      not_crehq: [{ key: "rents_comps", topic: "Asking rents, lease comps and sale comps" }, { key: "zoning_status", topic: "Zoning and approvals status" }],
+    },
+    meta: {},
+  }).content[0].text;
+  assert.match(summary, /site_context: access summary \(free sandbox key\); one headline per section plus coverage flags; the full report needs a Researcher Pass or a Pro API key: https:\/\/crehq\.com\/developers\/sandbox\/#pro-checkout/);
+  assert.match(summary, /demographics: coverage could not be confirmed\. Ring demographics are not available yet\./);
+  assert.match(summary, /jobs: not covered here \(not held, not zero\)\. No workplace job counts/);
+  assert.match(summary, /anchors: stale \(vintage 2019\)/);
+  assert.match(summary, /not_crehq: CREHQ does not hold Asking rents, lease comps and sale comps; Zoning and approvals status\./);
+  assert.doesNotMatch(summary, /traffic:/);
+
+  const cohort = ok({
+    data: {
+      access: { level: "full", basis: "competition access", csv_export: false, row_cap: 50 },
+      sections: { traffic: { covered: true, stale: false, rows_capped: { nearest_roads: { returned: 50, available: 63 } } } },
+      not_crehq: [],
+    },
+    meta: {},
+  }).content[0].text;
+  assert.match(cohort, /site_context: access full \(competition access\)/);
+  assert.match(cohort, /traffic\.nearest_roads: 50 of 63 rows returned/);
+  assert.doesNotMatch(cohort, /upgrade|Researcher Pass|checkout/i);
+}
+
 if (process.env.PRINT_SAMPLES) {
   for (const name of ["err_row_budget_exhausted", "err_brand_not_found", "err_selector_cap", "success_d2_preview"]) {
     const text = samples[name] ?? "";

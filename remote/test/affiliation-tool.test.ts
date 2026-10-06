@@ -44,6 +44,7 @@ assert.deepEqual(names, [
     "crehq_purchased_datasets_list",
     "crehq_request_upgrade",
     "crehq_resolve_entity_affiliation",
+    "crehq_site_context",
     "crehq_site_selector_match",
     "crehq_team_item_add",
     "crehq_team_item_remove",

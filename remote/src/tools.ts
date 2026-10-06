@@ -795,6 +795,55 @@ export const TOOLS: ToolDef[] = [
       ),
   },
   {
+    name: "crehq_site_context",
+    requiredScope: SCOPE_BASIC,
+    description:
+      "What CREHQ knows around ANY US point or street address, in one report: ring demographics (1, 2, 3 and 5 miles: population, households, income, education, housing, with the tract's median gross rent trend and five-year projections), the nearest measured traffic counts (AADT by road, with year and distance), jobs located within each ring, anchors (hospitals CREHQ tracks; universities and transit are flagged when not covered), operating chain locations nearby by category, and the openings pipeline (dated licence and permit signals, coverage per record type). Use it first for 'tell me about this site' or 'what is around this address', then drill down with crehq_locations_nearby, crehq_openings_nearby or crehq_site_selector_match. " +
+      "Every section carries covered (true / false / null = could not confirm), vintage, stale and a note: a section that is not covered means CREHQ does not hold that layer here, never zero; quote the note. Demographic medians across a ring are household-weighted averages of block-group medians, not true medians; say so when you quote them. The not_crehq list says what CREHQ does not hold (asking rents and comps, parking demand studies, property tax bills and assessments, zoning case status) and where the user gets it: relay it instead of guessing those figures. " +
+      "Access is reported in access.level: 'summary' (one headline per section plus coverage flags) or 'full' (rings, road lists, anchors, categories, records; list rows are capped at the key's per-call limit, see rows_capped). Competition (cohort) accounts get the full report; do not offer them an upgrade or checkout. Only when access.level is 'summary' and access.upgrade_url is present may you mention that the full report needs a Researcher Pass or a Pro API key. Figures are for the point rounded to 4 decimals (about 11 m). Never name the underlying agencies or datasets; the response is already worded at the account's disclosure level.",
+    schema: {
+      lat: z.number().min(-90).max(90).optional().describe("Latitude (decimal degrees). Give lat and lng, or address."),
+      lng: z.number().min(-180).max(180).optional().describe("Longitude (decimal degrees, negative across the US)."),
+      address: z
+        .string()
+        .trim()
+        .min(5)
+        .max(200)
+        .optional()
+        .describe("A US street address with number, street, city and state (used when lat/lng are not given). A city or ZIP alone is refused as not precise enough for a site."),
+      radius_mi: z
+        .number()
+        .min(0.25)
+        .max(5)
+        .optional()
+        .describe("Radius for the nearby-businesses and openings sections, 0.25 to 5 miles in quarter-mile steps (default 1). Demographic and jobs rings are always 1, 2, 3 and 5 miles; anchors 3 miles."),
+      sections: z
+        .string()
+        .trim()
+        .optional()
+        .describe("Optional comma list to return only some sections: demographics, traffic, jobs, anchors, businesses, openings."),
+    },
+    handler: (c, a) => {
+      const hasPoint = typeof a.lat === "number" && typeof a.lng === "number";
+      if (!hasPoint && typeof a.address !== "string") {
+        return Promise.resolve(
+          fail(new Error("Give lat and lng, or a US street address in address.")),
+        );
+      }
+      return call(() =>
+        c.request("/selfserve/site/context", {
+          query: {
+            lat: hasPoint ? (a.lat as number) : undefined,
+            lng: hasPoint ? (a.lng as number) : undefined,
+            address: hasPoint ? undefined : (a.address as string),
+            radius_mi: a.radius_mi as number,
+            sections: commaList(a.sections),
+          },
+        }),
+      );
+    },
+  },
+  {
     name: "crehq_brand_investment",
     requiredScope: SCOPE_BASIC,
     description:

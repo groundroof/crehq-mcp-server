@@ -426,9 +426,9 @@ export const TOOLS: ToolDef[] = [
     name: "crehq_brand_economics",
     requiredScope: SCOPE_BASIC,
     description:
-      "A franchise brand's published costs to a franchisee — initial franchise fee, total investment range, royalty and ad-fund rates, liquid capital and net worth required — but ONLY figures CREHQ verified verbatim against the Franchise Disclosure Document it holds, with verification status, source class and vintage where disclosed. Source quotations are returned only when the account is entitled to them. A field comes back null with verified false when CREHQ has not checked it; report that as unverified rather than substituting a number from elsewhere. These are franchisor costs, not rent and not landlord income.",
+      "A franchise brand's published costs to a franchisee — initial franchise fee, total investment range, royalty and ad-fund rates, liquid capital and net worth required — but ONLY figures CREHQ verified verbatim against the Franchise Disclosure Document it holds, with verification status, source class and vintage where disclosed. Source quotations are returned only when the account is entitled to them. A field comes back null with verified false when CREHQ has not checked it; report that as unverified rather than substituting a number from elsewhere. These are franchisor costs, not rent and not landlord income. `territory` carries the franchise territory terms from FDD Item 12 (exclusive or protected territory, radius or population, development schedule, right of first refusal, and terms_text in substance); use it for territory questions, which crehq_company_site_requirements no longer answers. A null territory field means the filing did not say.",
     schema: {
-      company: z.string().describe("CREHQ brand slug or company_id. Resolve a name with crehq_companies_search first."),
+      company: z.string().describe("CREHQ brand slug or company_id. Resolve a name with crehq_companies_search first. A common variant (plural, possessive, '&'/'and', a trailing Inc/LLC) resolves; company.resolved_from then names what you sent. On company_not_found, offer the did_you_mean slugs to the user."),
     },
     handler: (c, a) => call(() => c.request("/selfserve/brand-economics", { query: { company: String(a.company) } })),
   },
@@ -762,11 +762,11 @@ export const TOOLS: ToolDef[] = [
     name: "crehq_company_site_requirements",
     requiredScope: SCOPE_BASIC,
     description:
-      "Get one brand's PUBLISHED site-selection criteria as CREHQ has recorded them: unit size, site types, lease terms, traffic, population, household income, and co-tenancy text, with source class and vintage where available; direct source links depend on account access. These are what the brand states it wants, not a measurement of where it operates. Published criteria are often partial, dated, or absent; a missing field means CREHQ has no published value, not that the brand has no requirement. Check the returned vintage before treating a requirement as current; never invent a source link.",
+      "Get one brand's PUBLISHED site-selection criteria as CREHQ has recorded them: unit size, site types, lease terms, traffic, population, household income, and co-tenancy text, with source class and vintage where available; direct source links depend on account access. These are what the brand states it wants, not a measurement of where it operates. Published criteria are often partial, dated, or absent; a missing field means CREHQ has no published value, not that the brand has no requirement. `playbook` holds the published text specs (preferred site types, co-tenancy, lease and site-acceptance terms, signage, utilities, submission channel) and site_factors_text, the factors a filing says the brand evaluates (e.g. income levels, traffic patterns) when it states no numeric threshold: report those as factors, never as numbers. Franchise territory terms (FDD Item 12) are not site criteria and are returned by crehq_brand_economics. Check the returned vintage before treating a requirement as current; never invent a source link.",
     schema: {
       company: z
         .union([z.string().trim().min(1).max(200), z.number().int().positive()])
-        .describe("CREHQ brand slug (e.g. 'planet-fitness') or numeric company id."),
+        .describe("CREHQ brand slug (e.g. 'planet-fitness') or numeric company id. A common variant (plural, possessive, '&'/'and', a trailing Inc/LLC, the brand name) resolves; company.resolved_from then names what you sent. On company_not_found, offer the did_you_mean slugs to the user."),
     },
     handler: (c, a) =>
       call(() => c.request("/selfserve/company-requirements", { query: { company: String(a.company) } })),

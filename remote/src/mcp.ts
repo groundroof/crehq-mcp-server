@@ -88,7 +88,7 @@ export async function handleRpc(
           "CREHQ location-intelligence tools. Begin with crehq_access_summary to learn this account's included data, limits and competition access. " +
           "Resolve brand names with crehq_companies_search before detail calls. For tenant shortlists use crehq_site_selector_match; " +
           "for one brand's published requirements use crehq_company_site_requirements. Read returned limits, notes and coverage. " +
-          "Use crehq_brand_cotenancy for measured neighbors, crehq_brand_economics for verified fees, crehq_brand_investment for FDD Item 7, " +
+          "Use crehq_brand_cotenancy for measured neighbors, crehq_brand_economics for verified fees and franchise territory terms, crehq_brand_investment for FDD Item 7, " +
           "and crehq_brand_expansion for FDD Item 20. These dedicated tools can be included even when similarly named premium tools are hidden. " +
           "Distinguish an access restriction from no published coverage and from an unverified or undisclosed field. Never claim a specific value exists " +
           "without a successful data response. Null is unknown, not zero; market absence is not expansion intent; a fit score is not leasing interest. " +

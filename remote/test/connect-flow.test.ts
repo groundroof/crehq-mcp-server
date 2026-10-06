@@ -30,6 +30,7 @@ const RAW_INVALID_KEY = "crehq_live_raw_invalid_key_0004";
 
 const SITE_TOOLS = ["crehq_site_selector_match", "crehq_brands_matching_site", "crehq_company_site_requirements"];
 const OPENINGS_TOOLS = ["crehq_openings_nearby"];
+const SITE_CONTEXT_TOOLS = ["crehq_site_context"];
 const COHORT_TOOLS = ["crehq_companies_search", "crehq_brand_cotenancy", "crehq_brand_economics", "crehq_access_summary"];
 const FDD_TOOLS = ["crehq_brand_investment", "crehq_brand_expansion"];
 const TEAM_TOOLS = [
@@ -54,6 +55,7 @@ const SELFSERVE_CATALOG = [
   ...COHORT_TOOLS,
   ...FDD_TOOLS,
   ...OPENINGS_TOOLS,
+  ...SITE_CONTEXT_TOOLS,
   ...TEAM_TOOLS,
 ];
 

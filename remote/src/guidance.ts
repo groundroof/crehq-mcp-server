@@ -300,6 +300,59 @@ function d2PreviewLines(data: Obj): string[] {
   return lines;
 }
 
+/**
+ * Site context (/selfserve/site/context): access level, sections that are not covered,
+ * could not be confirmed or are stale, capped lists, and what CREHQ does not hold.
+ * Detected by shape (a sections object plus a not_crehq list). Never adds an upgrade
+ * offer the API did not send: upgrade_url is absent for competition accounts.
+ */
+export function siteContextLines(data: Obj): string[] {
+  if (!isObj(data.sections) || !Array.isArray(data.not_crehq)) return [];
+  const lines: string[] = [];
+  const access = isObj(data.access) ? data.access : undefined;
+  const level = access ? text(access.level) : undefined;
+  if (level) {
+    const basis = access ? text(access.basis) : undefined;
+    let line = `site_context: access ${level}${basis ? ` (${basis})` : ""}`;
+    if (level === "summary") {
+      line += "; one headline per section plus coverage flags";
+      const upgrade = access ? text(access.upgrade_url) : undefined;
+      if (upgrade) line += `; the full report needs a Researcher Pass or a Pro API key: ${upgrade}`;
+    }
+    lines.push(line);
+  }
+  for (const [id, raw] of Object.entries(data.sections)) {
+    if (!isObj(raw)) continue;
+    const note = text(raw.note);
+    if (raw.covered === false) {
+      lines.push(`${id}: not covered here (not held, not zero)${note ? `. ${note}` : ""}`);
+    } else if (raw.covered === null) {
+      lines.push(`${id}: coverage could not be confirmed${note ? `. ${note}` : ""}`);
+    }
+    if (raw.stale === true) {
+      const vintage = text(raw.vintage);
+      lines.push(`${id}: stale${vintage ? ` (vintage ${vintage})` : ""}; a newer release exists than the one loaded`);
+    }
+    if (isObj(raw.rows_capped)) {
+      for (const [list, cap] of Object.entries(raw.rows_capped)) {
+        if (!isObj(cap)) continue;
+        const returned = count(cap.returned);
+        const available = count(cap.available);
+        if (returned !== undefined && available !== undefined) {
+          lines.push(`${id}.${list}: ${num(returned)} of ${num(available)} rows returned (key's per-call cap)`);
+        }
+      }
+    }
+  }
+  const topics = data.not_crehq
+    .map((item) => (isObj(item) ? text(item.topic) : undefined))
+    .filter((topic): topic is string => topic !== undefined);
+  if (topics.length > 0) {
+    lines.push(`not_crehq: CREHQ does not hold ${topics.join("; ")}. Relay where_to_get_it instead of estimating these.`);
+  }
+  return lines;
+}
+
 /** Guidance lines for a successful self-serve response: coverage, paging, budgets, offers, D2 preview. */
 export function successGuidanceLines(data: unknown): string[] {
   if (!isObj(data)) return [];
@@ -349,5 +402,6 @@ export function successGuidanceLines(data: unknown): string[] {
   const full = fullDatasetLine(data.full_dataset);
   if (full) lines.push(full);
   lines.push(...d2PreviewLines(data));
+  lines.push(...siteContextLines(data));
   return lines;
 }

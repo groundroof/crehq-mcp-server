@@ -436,7 +436,7 @@ export const TOOLS: ToolDef[] = [
     name: "crehq_access_summary",
     requiredScope: SCOPE_BASIC,
     description:
-      "What THIS CREHQ key can and cannot reach, in plain terms: the access level, what is included, what CREHQ holds that this key does not include and why, and the row limits per brand and per month. Call this when a tool is refused, before telling the user CREHQ lacks the data — CREHQ may hold it while this key does not include it.",
+      "What THIS CREHQ key can and cannot reach, in plain terms: the access level, what is included, what CREHQ holds that this key does not include and why, and the row limits per brand and per month. Call this when a tool is refused, before telling the user CREHQ lacks the data: CREHQ may hold it while this key does not include it. `tools` maps each tool to full, summary, preview or not_included for this key. If a tool listed there is missing from your tool list, the connection predates it: tell the user to disconnect and reconnect the CREHQ connector in their AI app.",
     schema: {},
     handler: (c) => call(() => c.request("/selfserve/access-summary")),
   },
@@ -622,7 +622,7 @@ export const TOOLS: ToolDef[] = [
     name: "crehq_site_selector_match",
     requiredScope: SCOPE_BASIC,
     description:
-      "CREHQ's tenant-shortlist engine for a vacant unit. Describe the space (size, site type, state, category) and, optionally, what you measured at the site (AADT traffic, population and household income within a radius) and its co-tenants; it returns a ranked list of brands that could fit. It keeps two kinds of evidence apart: STATED fit, from what a brand PUBLISHES about the space it wants, and REVEALED fit, from percentiles over where the brand actually operates today across its current US estate. Coverage is uneven: many brands publish no requirements, and revealed percentiles exist only where CREHQ has the underlying location and context data. Every response carries measured coverage in `limits`, and the response `notes` explain how the criteria were applied. Read `limits` and `notes` before concluding a brand does not fit: a missing published value or thin revealed coverage is not evidence of a mismatch, and include_unknown=true keeps brands that lack evidence for a criterion. A shortlist entry is evidence for outreach, not confirmation that the brand wants this site. Use crehq_company_site_requirements to see one brand's published criteria and sources. Pass the site's lat and lng to learn, per brand, whether it ALREADY operates within market_radius miles (market_presence: in_market, locations_within_radius, nearest_miles); presence=absent turns the shortlist into brands NOT YET in that market, the usual question for a new development. Presence is a footprint fact from CREHQ's active US locations, never evidence that a brand wants the market.",
+      "CREHQ's tenant-shortlist engine for a vacant unit. Describe the space (size, site type, state, category) and, optionally, what you measured at the site (AADT traffic, population and household income within a radius) and its co-tenants; it returns a ranked list of brands that could fit. It keeps two kinds of evidence apart: STATED fit, from what a brand PUBLISHES about the space it wants, and REVEALED fit, from percentiles over where the brand actually operates today across its current US estate. Coverage is uneven: many brands publish no requirements, and revealed percentiles exist only where CREHQ has the underlying location and context data. Every response carries measured coverage in `limits`, and the response `notes` explain how the criteria were applied. Read `limits` and `notes` before concluding a brand does not fit: a missing published value or thin revealed coverage is not evidence of a mismatch, and include_unknown=true keeps brands that lack evidence for a criterion. A shortlist entry is evidence for outreach, not confirmation that the brand wants this site. Use crehq_company_site_requirements to see one brand's published criteria and sources. Pass the site's lat and lng to learn, per brand, whether it ALREADY operates within market_radius miles (market_presence: in_market, locations_within_radius, nearest_miles); presence=absent turns the shortlist into brands NOT YET in that market, the usual question for a new development. Presence is a footprint fact from CREHQ's active US locations, never evidence that a brand wants the market. Rows are compact by default (fit, size, presence, one line of evidence); pass detail=full for every field.",
     schema: {
       sqft: z.number().int().positive().optional().describe("Size of the vacant unit in square feet."),
       site_type: z
@@ -670,6 +670,10 @@ export const TOOLS: ToolDef[] = [
       sort: z.enum(["score", "name", "locations", "size", "fit"]).optional().describe("Sort order: score, name, locations, size, or fit."),
       page,
       per_page: z.number().int().min(1).max(50).optional().describe("Results per page (max 50)."),
+      detail: z
+        .enum(["compact", "full"])
+        .optional()
+        .describe("compact (default): per brand the fit, size, presence and one line of evidence, about 1 KB a row. full: every field per brand (revealed envelopes, measured co-tenancy, sources, size alternates, score components), about 10 KB a row. Start compact; ask for full only for the few brands you need to explain."),
     },
     handler: (c, a) =>
       call(() =>
@@ -695,6 +699,7 @@ export const TOOLS: ToolDef[] = [
             sort: a.sort as string,
             page: a.page as number,
             per_page: a.per_page as number,
+            detail: a.detail as string,
           },
         }),
       ),
@@ -703,7 +708,7 @@ export const TOOLS: ToolDef[] = [
     name: "crehq_brands_matching_site",
     requiredScope: SCOPE_BASIC,
     description:
-      "Match a described site (size, site type, traffic, population, income, co-tenants, state) against the site requirements CREHQ has recorded for brands, and return the brands that are compatible. Give the site's lat and lng to learn, per brand, whether it ALREADY operates within market_radius_miles (market_presence); presence=absent keeps only brands NOT YET in that market, a footprint fact and never evidence the brand wants the market. Recorded requirements are partial: many brands have none, so a brand's absence from the results is not proof it would reject the site (include_unknown=true keeps brands with no recorded value for a criterion). For a full vacant-unit shortlist that separates published (stated) requirements from where brands actually operate (revealed) and reports coverage, prefer crehq_site_selector_match.",
+      "Match a described site (size, site type, traffic, population, income, co-tenants, state) against the site requirements CREHQ has recorded for brands, and return the brands that are compatible. Give the site's lat and lng to learn, per brand, whether it ALREADY operates within market_radius_miles (market_presence); presence=absent keeps only brands NOT YET in that market, a footprint fact and never evidence the brand wants the market. Recorded requirements are partial: many brands have none, so a brand's absence from the results is not proof it would reject the site (include_unknown=true keeps brands with no recorded value for a criterion). For a full vacant-unit shortlist that separates published (stated) requirements from where brands actually operate (revealed) and reports coverage, prefer crehq_site_selector_match. Rows are compact by default (fit, size, presence, one line of evidence); pass detail=full for the published criteria, sources and measured envelope per brand.",
     schema: {
       sqft: z.number().int().positive().optional().describe("Size of the unit in square feet."),
       site_type: z.string().trim().min(1).optional().describe("Site type of the unit, e.g. 'endcap' or 'freestanding'."),
@@ -733,6 +738,10 @@ export const TOOLS: ToolDef[] = [
         .boolean()
         .optional()
         .describe("When true, require the site to fit within each brand's recorded requirement envelope (stricter; fewer results)."),
+      detail: z
+        .enum(["compact", "full"])
+        .optional()
+        .describe("compact (default): per brand the fit, size, presence and one line of evidence, about 1 KB a row. full: every field per brand (revealed envelopes, measured co-tenancy, sources, size alternates, score components), about 10 KB a row. Start compact; ask for full only for the few brands you need to explain."),
     },
     handler: (c, a) =>
       call(() =>
@@ -754,6 +763,7 @@ export const TOOLS: ToolDef[] = [
             limit: a.limit as number,
             include_unknown: a.include_unknown as boolean,
             require_envelope_fit: a.require_envelope_fit as boolean,
+            detail: a.detail as string,
           },
         }),
       ),

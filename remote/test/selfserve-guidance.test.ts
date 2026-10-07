@@ -195,6 +195,30 @@ try {
   assert.match(small.text, /this brand 1 of 1 rows used this month, 0 left/);
   assert.match(small.text, /this response was cut to the remaining budget/);
 
+  // city / county (2026-10-07): forwarded, and what the API did not apply is relayed first.
+  const city = await callTool(
+    "crehq_locations_list",
+    { brand: "mcdonalds", state: "IL", city: "chicago", per_page: 2 },
+    "success_city_filter_ignored",
+  );
+  assert.equal(lastUrl?.searchParams.get("city"), "chicago", "city= is forwarded on the self-serve surface");
+  assert.match(city.text, /ignored_params: foo \(the API did not apply these; the rows are NOT filtered by them\)/);
+  assert.match(city.text, /notice: Ignored parameter \(not supported by this endpoint\): foo\./);
+  assert.match(city.text, /results: showing 1–2 of 101 total_available/);
+
+  const noCity = await callTool(
+    "crehq_locations_list",
+    { brand: "mcdonalds", state: "IL", city: "Chicgo", per_page: 2 },
+    "success_city_no_match",
+  );
+  assert.match(noCity.text, /notice: No locations in this scope have city "Chicgo".*never widens to the state\. Closest city names in this scope: Chicago\./);
+
+  const county = await callTool("crehq_locations_nearby", { lat: 41.88, lng: -87.63, county: "Cook" }, "err_ambiguous_county");
+  assert.equal(lastUrl?.searchParams.get("county"), "Cook", "county= is forwarded on the self-serve surface");
+  assert.equal(county.isError, true);
+  assert.match(county.text, /ambiguous_county\): "Cook" names counties in 3 states/);
+  assert.match(county.text, /candidates: Cook County, GA \(13075\); Cook County, IL \(17031\); Cook County, MN \(27031\)/);
+
   // Responses without guidance fields (full API surface) are unchanged.
   assert.equal(ok({ data: { id: 1 }, meta: {} }).content[0].text, JSON.stringify({ id: 1 }, null, 2));
 } finally {
@@ -245,4 +269,4 @@ if (process.env.PRINT_SAMPLES) {
   }
 }
 
-console.log("PASS remote self-serve guidance pass-through (14 live fixtures)");
+console.log("PASS remote self-serve guidance pass-through (17 live fixtures)");

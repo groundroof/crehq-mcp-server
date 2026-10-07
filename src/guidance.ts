@@ -147,6 +147,16 @@ export function errorGuidanceLines(body: unknown): string[] {
   const hint = text(body.hint);
   if (hint) lines.push(`api_hint: ${hint}`);
 
+  // WordPress REST errors carry their extras under `data` (e.g. ambiguous_county
+  // candidates, unknown_county / unknown_category did_you_mean).
+  const errData = isObj(body.data) ? body.data : undefined;
+  if (errData) {
+    const candidates = list(errData.candidates);
+    if (candidates.length > 0) lines.push(`candidates: ${candidates.join("; ")}`);
+    const dataDym = list(errData.did_you_mean);
+    if (dataDym.length > 0) lines.push(`did_you_mean: ${dataDym.join("; ")}`);
+  }
+
   const countries = list(body.available_countries);
   if (countries.length > 0) {
     const brand = text(body.brand);
@@ -285,6 +295,14 @@ export function successGuidanceLines(data: unknown): string[] {
   if (coverageNone) {
     lines.push(`coverage: none. ${text(data.message) ?? "CREHQ has no published locations for this brand yet."}`);
   }
+
+  // Parameters the API did not apply, and its own notices (2026-10-07): first, so an
+  // agent never presents unfiltered rows as filtered.
+  const ignored = list(data.ignored_params);
+  if (ignored.length > 0) {
+    lines.push(`ignored_params: ${ignored.join(", ")} (the API did not apply these; the rows are NOT filtered by them)`);
+  }
+  for (const notice of list(data.notices)) lines.push(`notice: ${notice}`);
 
   const selector = isObj(data.selector) ? data.selector : undefined;
   const selectedBrand = selector ? text(selector.brand) : undefined;

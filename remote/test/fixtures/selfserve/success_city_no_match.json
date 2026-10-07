@@ -1,0 +1,72 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/selfserve/locations",
+    "query": {
+      "brand": "mcdonalds",
+      "state": "IL",
+      "city": "Chicgo",
+      "limit": 2
+    }
+  },
+  "status": 200,
+  "headers": {
+    "content-type": "application/json; charset=UTF-8"
+  },
+  "body": {
+    "tier": "developer",
+    "fields": "D1",
+    "requested_fields": [],
+    "pack_fields": [],
+    "count": 0,
+    "per_call_cap": 100,
+    "capped": false,
+    "page": 1,
+    "max_page": 1,
+    "noncommercial_excluded": false,
+    "selector": {
+      "brand": "mcdonalds-corporation",
+      "state": "IL",
+      "country": "US",
+      "city": "Chicgo",
+      "city_matched": []
+    },
+    "locations": [],
+    "intelligence": null,
+    "licence": null,
+    "quota": {
+      "monthly_limit": 25000,
+      "used": 18,
+      "remaining": 24982
+    },
+    "notice": null,
+    "notices": [
+      "No locations in this scope have city \"Chicgo\" (matched ignoring case, accents and punctuation; St/Saint, Ste/Sainte, Mt/Mount and Ft/Fort count as the same). 0 rows returned; the filter never widens to the state. Closest city names in this scope: Chicago."
+    ],
+    "resolved_from": "mcdonalds",
+    "market_scope": {
+      "country": "US",
+      "company_id": 25647,
+      "basis": "mcdonalds_market_map"
+    },
+    "total_available": 0,
+    "showing": null,
+    "ordering": "state, city, name",
+    "has_more": false,
+    "end_of_results": false,
+    "total_pages": 1,
+    "page_cap": 5,
+    "coverage_note": "No published locations for this brand match the requested filters.",
+    "row_budget": {
+      "brand_used": 237,
+      "brand_limit": 250,
+      "brand_limit_basis": "25% of 13,723 locations (max 250)",
+      "brand_remaining": 13,
+      "month_used": 296,
+      "month_limit": 25000,
+      "month_remaining": 24704,
+      "resets_at": "2026-11-01T00:00:00Z",
+      "truncated": false
+    }
+  }
+}

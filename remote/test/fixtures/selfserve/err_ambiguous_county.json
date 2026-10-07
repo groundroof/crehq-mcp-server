@@ -1,0 +1,27 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/selfserve/locations",
+    "query": {
+      "brand": "mcdonalds",
+      "county": "Cook",
+      "limit": 2
+    }
+  },
+  "status": 400,
+  "headers": {
+    "content-type": "application/json; charset=UTF-8"
+  },
+  "body": {
+    "code": "ambiguous_county",
+    "message": "\"Cook\" names counties in 3 states; pass state= or a 5-digit FIPS code.",
+    "data": {
+      "status": 400,
+      "candidates": [
+        "Cook County, GA (13075)",
+        "Cook County, IL (17031)",
+        "Cook County, MN (27031)"
+      ]
+    }
+  }
+}

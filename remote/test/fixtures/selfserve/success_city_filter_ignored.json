@@ -1,0 +1,222 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/selfserve/locations",
+    "query": {
+      "brand": "mcdonalds",
+      "state": "IL",
+      "city": "chicago",
+      "limit": 2,
+      "foo": "bar"
+    }
+  },
+  "status": 200,
+  "headers": {
+    "content-type": "application/json; charset=UTF-8"
+  },
+  "body": {
+    "tier": "developer",
+    "fields": "D1",
+    "requested_fields": [],
+    "pack_fields": [],
+    "count": 2,
+    "per_call_cap": 100,
+    "capped": false,
+    "page": 1,
+    "max_page": 5,
+    "noncommercial_excluded": false,
+    "selector": {
+      "brand": "mcdonalds-corporation",
+      "state": "IL",
+      "country": "US",
+      "city": "chicago",
+      "city_matched": [
+        "Chicago"
+      ]
+    },
+    "locations": [
+      {
+        "brand_name": "McDonald's Corporation",
+        "brand_slug": "mcdonalds-corporation",
+        "category": "restaurants",
+        "category_name": "Restaurants",
+        "subcategory": "qsr-burger",
+        "subcategory_name": "QSR / Burger",
+        "name": "47TH FRANCISCO",
+        "address": "2844 W. 47th Street",
+        "city": "Chicago",
+        "state": "IL",
+        "zip_code": "60632",
+        "country": "US",
+        "latitude": 41.808525,
+        "longitude": -87.696326,
+        "format": "fast_food_restaurant",
+        "phone": "(773) 523-2865",
+        "hours": {
+          "monday": [
+            {
+              "open": "00:00",
+              "close": "00:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "open": "00:00",
+              "close": "00:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "open": "00:00",
+              "close": "00:00"
+            }
+          ],
+          "thursday": [
+            {
+              "open": "00:00",
+              "close": "00:00"
+            }
+          ],
+          "friday": [
+            {
+              "open": "00:00",
+              "close": "00:00"
+            }
+          ],
+          "saturday": [
+            {
+              "open": "00:00",
+              "close": "00:00"
+            }
+          ],
+          "sunday": [
+            {
+              "open": "00:00",
+              "close": "00:00"
+            }
+          ],
+          "holidays_closed": [],
+          "notes": null
+        },
+        "store_id": "mcdonalds-195500600864",
+        "status": "active"
+      },
+      {
+        "brand_name": "McDonald's Corporation",
+        "brand_slug": "mcdonalds-corporation",
+        "category": "restaurants",
+        "category_name": "Restaurants",
+        "subcategory": "qsr-burger",
+        "subcategory_name": "QSR / Burger",
+        "name": "CHGO - 2600 W ADDISON",
+        "address": "2600 West Addison",
+        "city": "Chicago",
+        "state": "IL",
+        "zip_code": "60618-5905",
+        "country": "US",
+        "latitude": 41.947034,
+        "longitude": -87.693627,
+        "format": "fast_food_restaurant",
+        "phone": "(773) 477-8687",
+        "hours": {
+          "monday": [
+            {
+              "open": "05:30",
+              "close": "00:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "open": "05:30",
+              "close": "00:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "open": "05:30",
+              "close": "00:00"
+            }
+          ],
+          "thursday": [
+            {
+              "open": "05:30",
+              "close": "00:00"
+            }
+          ],
+          "friday": [
+            {
+              "open": "05:30",
+              "close": "00:00"
+            }
+          ],
+          "saturday": [
+            {
+              "open": "05:30",
+              "close": "00:00"
+            }
+          ],
+          "sunday": [
+            {
+              "open": "05:30",
+              "close": "00:00"
+            }
+          ],
+          "holidays_closed": [],
+          "notes": null
+        },
+        "store_id": "mcdonalds-195500245874",
+        "status": "active"
+      }
+    ],
+    "intelligence": null,
+    "licence": null,
+    "quota": {
+      "monthly_limit": 25000,
+      "used": 17,
+      "remaining": 24983
+    },
+    "notice": null,
+    "notices": [
+      "Ignored parameter (not supported by this endpoint): foo. Supported: brand, state, country, category, city, county, lat, lng, radius, include_noncommercial, limit, page, fields, include_provenance."
+    ],
+    "ignored_params": [
+      "foo"
+    ],
+    "resolved_from": "mcdonalds",
+    "market_scope": {
+      "country": "US",
+      "company_id": 25647,
+      "basis": "mcdonalds_market_map"
+    },
+    "total_available": 101,
+    "showing": {
+      "from": 1,
+      "to": 2
+    },
+    "ordering": "state, city, name",
+    "has_more": true,
+    "end_of_results": false,
+    "total_pages": 51,
+    "page_cap": 5,
+    "coverage_note": "Rows 1–2 of 101, ordered by state, city, name. Next: page=2. Row budget for this brand: 237 of 250 used this month, 13 left: 25% of 13,723 locations (max 250). The sandbox stops at page 5 (10 rows at limit=2); the complete file is a licensed dataset. See full_dataset.",
+    "full_dataset": {
+      "name": "McDonald's Corporation",
+      "url": "https://crehq.com/data-store/mcdonalds-corporation/",
+      "price_usd": 1995,
+      "tier": "D1",
+      "scope": "full",
+      "location_count": 39331
+    },
+    "row_budget": {
+      "brand_used": 237,
+      "brand_limit": 250,
+      "brand_limit_basis": "25% of 13,723 locations (max 250)",
+      "brand_remaining": 13,
+      "month_used": 296,
+      "month_limit": 25000,
+      "month_remaining": 24704,
+      "resets_at": "2026-11-01T00:00:00Z",
+      "truncated": false
+    }
+  }
+}

@@ -67,6 +67,35 @@ const selfServeGuidanceNote =
 const locationCategoryNote =
   "Category vocabulary: every row carries brand_name and brand_slug, a normalized category and subcategory (slugs such as restaurants, coffee-tea, pharmacy, banking-finance) and, separately, format (the brand's own store-format label such as drive-thru or suites, never a category). The category filter accepts exactly those category/subcategory slugs or display names (singular or plural, comma list; e.g. 'restaurant', 'coffee', 'pharmacy'); the response's selector.category_matched shows what it matched. An unknown value returns an unknown_category error with valid_categories and did_you_mean, never a silent zero. A null category means the brand is not categorised yet, so a category filter cannot match it.";
 
+/**
+ * city= / county= on the location tools (2026-10-07). Before this the API dropped
+ * them silently (city=Chicago returned every Illinois row).
+ */
+const locationPlaceNote =
+  "Place filters: city and county only NARROW the brand, state or radius scope; they never widen it and never change row budgets or caps. city matches the row's city ignoring case, accents and punctuation (St/Saint, Ste/Sainte, Mt/Mount and Ft/Fort count as the same); pass state too, because city names repeat across states. county takes a US county name with state (e.g. county='Cook', state='IL'), 'Cook County, IL', or a 5-digit FIPS code ('17031'), and matches by the Census tract each location's coordinates fall in; an unknown or ambiguous county is an error that lists candidates. A city with no rows returns 0 rows plus a notice, never the whole state. The response's selector.city_matched shows the city spellings matched. Any parameter the API did not apply comes back in ignored_params and notices: relay those lines to the user instead of presenting unfiltered rows as filtered.";
+
+const cityParam = z
+  .string()
+  .optional()
+  .describe("Optional: city name, e.g. 'Chicago' or 'St. Louis'. Narrows the scope; matched ignoring case, accents and punctuation. Pass state too.");
+const countyParam = z
+  .string()
+  .optional()
+  .describe("Optional: US county, as a name with state (county='Cook', state='IL'), 'Cook County, IL', or a 5-digit FIPS code ('17031'). Narrows the scope by the Census tract of each location's coordinates.");
+
+/** Prefix an honest line when this key's API surface cannot apply a parameter. */
+async function withIgnored(res: Promise<ToolContent>, ignored: string[]): Promise<ToolContent> {
+  const out = await res;
+  if (ignored.length === 0) return out;
+  const line =
+    `ignored_params: ${ignored.join(", ")} (not supported on this key's API surface; the rows below are NOT narrowed by ` +
+    `${ignored.length === 1 ? "it" : "them"}). Tell the user.\n\n`;
+  const [first, ...rest] = out.content;
+  return { ...out, content: [{ type: "text", text: line + (first?.text ?? "") }, ...rest] };
+}
+
+const present = (v: unknown): boolean => typeof v === "string" ? v.trim() !== "" : v !== undefined && v !== null;
+
 /** Site types accepted by /selfserve/site-selector/match (comma list). */
 const SITE_SELECTOR_SITE_TYPES = [
   "endcap",
@@ -897,13 +926,17 @@ export const TOOLS: ToolDef[] = [
     name: "crehq_locations_list",
     requiredScope: SCOPE_BASIC,
     description:
-      "List individual store/branch/site records, filterable by brand, US state, and category. Each location carries a stable entity_uid, geocoded address, open/closed status, and a multi-source verification trace. The raw, government-cross-checked footprint behind any brand. This free/sandbox footprint output does NOT include credit signals, ownership/rating history, capital structure, or tenant-credit diligence; for those requests use crehq_company_credit_signals if available, otherwise call crehq_request_upgrade with requested_data='credit_signals'. " +
+      "List individual store/branch/site records, filterable by brand, US state, city, county and category. Each location carries a stable entity_uid, geocoded address, open/closed status, and a multi-source verification trace. The raw, government-cross-checked footprint behind any brand. This free/sandbox footprint output does NOT include credit signals, ownership/rating history, capital structure, or tenant-credit diligence; for those requests use crehq_company_credit_signals if available, otherwise call crehq_request_upgrade with requested_data='credit_signals'. " +
       locationCategoryNote +
+      " " +
+      locationPlaceNote +
       " " +
       selfServeGuidanceNote,
     schema: {
       brand: z.string().optional().describe("Brand slug or name to filter by (e.g. 'planet-fitness')."),
       state: z.string().optional().describe("US state, 2-letter code or full name (e.g. 'TX')."),
+      city: cityParam,
+      county: countyParam,
       country: z
         .string()
         .optional()
@@ -927,6 +960,8 @@ export const TOOLS: ToolDef[] = [
                 query: {
                   brand: a.brand as string,
                   state: a.state as string,
+                  city: a.city as string,
+                  county: a.county as string,
                   country: a.country as string,
                   category: a.category as string,
                   limit: (a.per_page as number) ?? 25,
@@ -947,17 +982,21 @@ export const TOOLS: ToolDef[] = [
               ],
               isError: true,
             })
-        : call(() =>
-            c.request("/locations", {
-              query: {
-                brand: a.brand as string,
-                state: a.state as string,
-                country: String(a.state ?? "").trim() ? "US" : undefined,
-                category: a.category as string,
-                per_page: a.per_page as number,
-                page: a.page as number,
-              },
-            }),
+        : withIgnored(
+            call(() =>
+              c.request("/locations", {
+                query: {
+                  brand: a.brand as string,
+                  state: a.state as string,
+                  city: a.city as string,
+                  country: String(a.state ?? "").trim() ? "US" : undefined,
+                  category: a.category as string,
+                  per_page: a.per_page as number,
+                  page: a.page as number,
+                },
+              }),
+            ),
+            present(a.county) ? ["county"] : [],
           ),
   },
   {
@@ -1092,12 +1131,17 @@ export const TOOLS: ToolDef[] = [
       "Bounded radius search: sample tracked locations within N miles of a lat/lng point. Powers trade-area analysis, competitor mapping, and 'what's near this address' questions. It only knows stores already operating; for businesses that have NOT opened yet — pending licences, new permits, build-outs — call crehq_openings_nearby. Returns distance-sorted storefronts verified against government records and brand-published data, across every vertical CREHQ covers. Rows are tracked chains and registries, not a census of every business, so a missing business is not proof it is absent. Pagination: total_available, total_pages, has_more and coverage_note say how many rows the radius holds; max_page is the deepest page that holds rows (page_cap is the sandbox's fixed depth limit). " +
       locationCategoryNote +
       " " +
+      locationPlaceNote +
+      " " +
       selfServeGuidanceNote,
     schema: {
       lat: z.number().describe("Latitude (decimal degrees)."),
       lng: z.number().describe("Longitude (decimal degrees)."),
       radius_mi: z.number().min(0.1).max(100).optional().describe("Search radius in miles (default 5)."),
       brand: z.string().optional().describe("Optional: restrict to one brand."),
+      city: cityParam,
+      county: countyParam,
+      state: z.string().optional().describe("Optional: US state (2-letter code or name); needed with a county name and recommended with city."),
       category: z
         .string()
         .optional()
@@ -1124,6 +1168,9 @@ export const TOOLS: ToolDef[] = [
                 lng: a.lng as number,
                 radius: (a.radius_mi as number) ?? 5,
                 brand: a.brand as string,
+                state: a.state as string,
+                city: a.city as string,
+                county: a.county as string,
                 category: a.category as string,
                 limit: (a.per_page as number) ?? 25,
                 page: a.page as number,
@@ -1132,18 +1179,22 @@ export const TOOLS: ToolDef[] = [
               },
             }),
           )
-        : call(() =>
-            c.request("/locations/nearby", {
-              query: {
-                lat: a.lat as number,
-                lng: a.lng as number,
-                radius_mi: a.radius_mi as number,
-                brand: a.brand as string,
-                category: a.category as string,
-                per_page: a.per_page as number,
-                include_noncommercial: a.include_noncommercial ? "1" : undefined,
-              },
-            }),
+        : withIgnored(
+            call(() =>
+              c.request("/locations/nearby", {
+                query: {
+                  lat: a.lat as number,
+                  lng: a.lng as number,
+                  // /locations/nearby takes `radius` in KILOMETRES; radius_mi used to be dropped (10 km default).
+                  radius: Math.round(((a.radius_mi as number) ?? 5) * 1.609344 * 1000) / 1000,
+                  brand: a.brand as string,
+                  category: a.category as string,
+                  per_page: a.per_page as number,
+                  include_noncommercial: a.include_noncommercial ? "1" : undefined,
+                },
+              }),
+            ),
+            ["state", "city", "county"].filter((k) => present(a[k])),
           ),
   },
   {

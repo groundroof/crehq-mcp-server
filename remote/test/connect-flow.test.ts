@@ -30,7 +30,7 @@ const RAW_INVALID_KEY = "crehq_live_raw_invalid_key_0004";
 
 const SITE_TOOLS = ["crehq_site_selector_match", "crehq_brands_matching_site", "crehq_company_site_requirements"];
 const OPENINGS_TOOLS = ["crehq_openings_nearby"];
-const SITE_CONTEXT_TOOLS = ["crehq_site_context"];
+const SITE_CONTEXT_TOOLS = ["crehq_site_context", "crehq_recent_site_context", "crehq_compare_brands_for_site"];
 const COHORT_TOOLS = ["crehq_companies_search", "crehq_brand_cotenancy", "crehq_brand_economics", "crehq_access_summary"];
 const FDD_TOOLS = ["crehq_brand_investment", "crehq_brand_expansion"];
 const TEAM_TOOLS = [
@@ -324,7 +324,7 @@ async function testSignInHappyPathAndReplay(): Promise<void> {
   check("sign-in: selfserve surface -> scope read:locations only (read:intelligence was requested)", tok.scope === "read:locations", tok.scope);
 
   const list = await listToolNames(app, tok.access_token);
-  check("mcp: selfserve session lists the 3 new site tools", list.status === 200 && SITE_TOOLS.every((n) => list.names.includes(n)));
+  check("mcp: selfserve session lists the site tools", list.status === 200 && [...SITE_TOOLS, ...SITE_CONTEXT_TOOLS].every((n) => list.names.includes(n)));
   check(`mcp: selfserve catalog is exactly the ${SELFSERVE_CATALOG.length} whitelisted tools`, sameSet(list.names, SELFSERVE_CATALOG), `${list.names.length} tools`);
 
   const callBefore = upstream.length;
@@ -428,6 +428,24 @@ async function testSiteToolQueries(app: App, token: string): Promise<void> {
       args: { company: 24734 },
       path: "/selfserve/company-requirements",
       query: { company: "24734" },
+    },
+    {
+      name: "crehq_site_context",
+      args: { address: "100 Foundry Drive, West Lafayette, IN 47906", sections: "demographics, traffic" },
+      path: "/selfserve/site/context",
+      query: { address: "100 Foundry Drive, West Lafayette, IN 47906", sections: "demographics,traffic", detail: "compact" },
+    },
+    {
+      name: "crehq_recent_site_context",
+      args: {},
+      path: "/selfserve/recent-site-context",
+      query: { detail: "compact" },
+    },
+    {
+      name: "crehq_compare_brands_for_site",
+      args: { brands: ["cvs-pharmacy", "sweetgreen", 24901], use_recent_site: true, cotenancy_limit: 3 },
+      path: "/selfserve/compare-brands",
+      query: { brands: "cvs-pharmacy,sweetgreen,24901", use_recent_site: "1", cotenancy_limit: "3" },
     },
   ];
   for (const tc of cases) {

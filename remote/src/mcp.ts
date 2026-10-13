@@ -87,7 +87,10 @@ export async function handleRpc(
         instructions:
           "CREHQ location-intelligence tools. Begin with crehq_access_summary to learn this account's included data, limits and competition access. " +
           "Resolve brand names with crehq_companies_search before detail calls. For tenant shortlists use crehq_site_selector_match; " +
-          "for one brand's published requirements use crehq_company_site_requirements. Read returned limits, notes and coverage. " +
+          "for one brand's published requirements use crehq_company_site_requirements. When the user just opened a site on crehq.com, " +
+          "continue with crehq_recent_site_context instead of asking for the address again; compare up to five named brands with " +
+          "crehq_compare_brands_for_site. Keep brand-published criteria separate from CREHQ-derived observed patterns and measured co-tenancy. " +
+          "Read returned limits, notes and coverage. " +
           "Use crehq_brand_cotenancy for measured neighbors, crehq_brand_economics for verified fees and franchise territory terms, crehq_brand_investment for FDD Item 7, " +
           "and crehq_brand_expansion for FDD Item 20. These dedicated tools can be included even when similarly named premium tools are hidden. " +
           "Distinguish an access restriction from no published coverage and from an unverified or undisclosed field. Never claim a specific value exists " +
@@ -216,6 +219,8 @@ function isVisibleTool(name: string, session: McpSession): boolean {
     case "crehq_company_site_requirements":
     case "crehq_openings_nearby":
     case "crehq_site_context":
+    case "crehq_recent_site_context":
+    case "crehq_compare_brands_for_site":
     case "crehq_brand_investment":
     case "crehq_brand_expansion":
     case "crehq_companies_search":

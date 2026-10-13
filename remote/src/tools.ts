@@ -801,7 +801,7 @@ export const TOOLS: ToolDef[] = [
     name: "crehq_company_site_requirements",
     requiredScope: SCOPE_BASIC,
     description:
-      "Get one brand's PUBLISHED site-selection criteria as CREHQ has recorded them: unit size, site types, lease terms, traffic, population, household income, and co-tenancy text, with source class and vintage where available; direct source links depend on account access. These are what the brand states it wants, not a measurement of where it operates. Published criteria are often partial, dated, or absent; a missing field means CREHQ has no published value, not that the brand has no requirement. `playbook` holds the published text specs (preferred site types, co-tenancy, lease and site-acceptance terms, signage, utilities, submission channel) and site_factors_text, the factors a filing says the brand evaluates (e.g. income levels, traffic patterns) when it states no numeric threshold: report those as factors, never as numbers. Franchise territory terms (FDD Item 12) are not site criteria and are returned by crehq_brand_economics. Check the returned vintage before treating a requirement as current; never invent a source link.",
+      "Get one brand's PUBLISHED site-selection criteria as CREHQ has recorded them: unit size, site types, lease terms, traffic, population, household income, and co-tenancy text, with source class and vintage where available; direct source links depend on account access. These are what the brand states it wants. `typical_site`, when returned, is a separate CREHQ-DERIVED observed pattern across current US locations: its median and p25-p75 middle half are a benchmark, never a brand requirement, acceptance threshold or prediction. Never blend the two evidence classes. Published criteria are often partial, dated, or absent; a missing field means CREHQ has no published value, not that the brand has no requirement. `playbook` holds the published text specs (preferred site types, co-tenancy, lease and site-acceptance terms, signage, utilities, submission channel) and site_factors_text, the factors a filing says the brand evaluates (e.g. income levels, traffic patterns) when it states no numeric threshold: report those as factors, never as numbers. Franchise territory terms (FDD Item 12) are not site criteria and are returned by crehq_brand_economics. Check the returned vintage and cite company.url plus the returned source class/date; never invent a source link.",
     schema: {
       company: z
         .union([z.string().trim().min(1).max(200), z.number().int().positive()])
@@ -861,6 +861,10 @@ export const TOOLS: ToolDef[] = [
         .trim()
         .optional()
         .describe("Optional comma list to return only some sections: demographics, traffic, jobs, anchors, businesses, openings."),
+      detail: z
+        .enum(["compact", "full"])
+        .optional()
+        .describe("Response size. compact is the default and keeps every headline/caution plus core comparison facts; full returns every entitled row."),
     },
     handler: (c, a) => {
       const hasPoint = typeof a.lat === "number" && typeof a.lng === "number";
@@ -877,6 +881,57 @@ export const TOOLS: ToolDef[] = [
             address: hasPoint ? undefined : (a.address as string),
             radius_mi: a.radius_mi as number,
             sections: commaList(a.sections),
+            detail: (a.detail as string) ?? "compact",
+          },
+        }),
+      );
+    },
+  },
+  {
+    name: "crehq_recent_site_context",
+    requiredScope: SCOPE_BASIC,
+    description:
+      "Continue from the most recent Site Context report opened on crehq.com while the account that owns this key was signed in. Use this before asking the user to repeat an address after they move from the website into the connector. It returns the saved address/point and a compact Site Context report by default. The saved site is account context only: it does not prove the user owns, represents, chose or approved the property.",
+    schema: {
+      detail: z
+        .enum(["compact", "full"])
+        .optional()
+        .describe("compact is the default; full returns every Site Context row available to this account."),
+    },
+    handler: (c, a) =>
+      call(() => c.request("/selfserve/recent-site-context", { query: { detail: (a.detail as string) ?? "compact" } })),
+  },
+  {
+    name: "crehq_compare_brands_for_site",
+    requiredScope: SCOPE_BASIC,
+    description:
+      "Compare one to five brands against one site in a single call. It deliberately separates (1) brand-published criteria and source dates, (2) CREHQ-derived observed medians and p25-p75 ranges across current US locations, and (3) measured spatial co-tenancy. The observed comparison is a benchmark only—not a requirement, recommendation, acceptance threshold, probability or evidence a brand wants the site. By default it uses the most recent Site Context report the signed-in account opened on crehq.com; pass an address or lat/lng to override it. Relay campus/group-quarters cautions, missing evidence and each returned company.url.",
+    schema: {
+      brands: z
+        .array(z.union([z.string().trim().min(1).max(200), z.number().int().positive()]))
+        .min(1)
+        .max(5)
+        .describe("One to five CREHQ brand slugs, names or company ids. Resolve uncertain names with crehq_companies_search."),
+      lat: z.number().min(-90).max(90).optional().describe("Optional site latitude; pass with lng to override the recent web site."),
+      lng: z.number().min(-180).max(180).optional().describe("Optional site longitude; pass with lat to override the recent web site."),
+      address: z.string().trim().min(5).max(200).optional().describe("Optional US street address; overrides the recent web site when lat/lng are omitted."),
+      use_recent_site: z.boolean().optional().describe("Use the key owner's most recently opened CREHQ Site Context when no point/address is supplied. Default true."),
+      cotenancy_limit: z.number().int().min(0).max(10).optional().describe("Measured neighbours per brand, 0 to omit (default 5)."),
+    },
+    handler: (c, a) => {
+      const hasPoint = typeof a.lat === "number" && typeof a.lng === "number";
+      if ((typeof a.lat === "number") !== (typeof a.lng === "number")) {
+        return Promise.resolve(fail(new Error("Pass both lat and lng, or neither.")));
+      }
+      return call(() =>
+        c.request("/selfserve/compare-brands", {
+          query: {
+            brands: (a.brands as Array<string | number>).map(String).join(","),
+            lat: hasPoint ? (a.lat as number) : undefined,
+            lng: hasPoint ? (a.lng as number) : undefined,
+            address: hasPoint ? undefined : (a.address as string),
+            use_recent_site: a.use_recent_site === false ? "0" : "1",
+            cotenancy_limit: a.cotenancy_limit as number,
           },
         }),
       );
